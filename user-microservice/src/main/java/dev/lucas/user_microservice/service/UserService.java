@@ -3,6 +3,7 @@ package dev.lucas.user_microservice.service;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,9 +15,12 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public UserModel saveUser(UserModel userModel) {
+    public UserModel saveUser(UserModel userModel){
+
+        userModel.setPassword(passwordEncoder.encode(userModel.getPassword()));
         return userRepository.save(userModel);
     }
 
