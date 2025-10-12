@@ -13,13 +13,14 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 @Component
+@RequiredArgsConstructor
 public class TokenConfig {
 
     private final String secret;
 
     public TokenConfig() {
         Dotenv dotenv = Dotenv.load();
-        this.secret = dotenv.get("SECRET");
+        this.secret = dotenv.get("SECRET_TOKEN");
         if (this.secret == null) {
             throw new IllegalStateException("SECRET not found in .env file");
         }
