@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 public class UserController {
     private final UserService userService;
 
-    @PostMapping("/create")
+    @PostMapping("/register")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
         UserModel userModel = toModel(request);
         UserModel savedUser = userService.saveUser(userModel);
