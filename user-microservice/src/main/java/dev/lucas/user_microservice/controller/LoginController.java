@@ -57,7 +57,7 @@ public class LoginController {
 
             // Envia dados pro CarService
             try {
-                restTemplate.postForObject("http://localhost:8081/cache/user", cacheDto, Void.class);
+                restTemplate.postForObject("http://localhost:8082/cache/user", cacheDto, Void.class);
             } catch (Exception e) {
                 System.out.println("Falha ao enviar dados para o CarService: " + e.getMessage());
             }
