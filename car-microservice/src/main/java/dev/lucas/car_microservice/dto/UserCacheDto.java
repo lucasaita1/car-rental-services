@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 public class UserCacheDto {
 
     private String id;
-    private String nome;
+    private String name;
     private String cpf;
     private String email;
 }
