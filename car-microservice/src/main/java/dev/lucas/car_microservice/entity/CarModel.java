@@ -25,5 +25,6 @@ public class CarModel {
     private int year;
     private LocalDate rentalDate;
     private LocalDate returnDate;
+    private Long userId;
 
 }
