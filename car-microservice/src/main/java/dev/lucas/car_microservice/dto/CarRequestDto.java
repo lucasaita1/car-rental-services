@@ -9,7 +9,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class CarDto {
+public class CarRequestDto {
 
     private String model;
     private String color;
