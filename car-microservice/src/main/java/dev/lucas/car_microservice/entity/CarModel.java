@@ -1,5 +1,6 @@
 package dev.lucas.car_microservice.entity;
 
+import dev.lucas.car_microservice.enums.CarStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,6 +26,6 @@ public class CarModel {
     private int year;
     private LocalDate rentalDate;
     private LocalDate returnDate;
-    private Long userId;
+    private CarStatus status;
 
 }
