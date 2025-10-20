@@ -2,32 +2,49 @@ package dev.lucas.user_microservice.dtos;
 
 public class EmailDto {
 
+    private Long userId;
+    private String email;
     private String emailFrom;
     private String emailTo;
     private String subject;
     private String text;
 
-    public EmailDto(String emailFrom, String emailTo, String subject, String text) {
-        this.emailFrom = emailFrom;
+    //NoArgs Constructor
+    public EmailDto() {
+    }
+
+    //AllArgs Constructor
+    public EmailDto(String text, String subject, String emailTo, String emailFrom, String email, Long userId) {
+        this.text = text;
+        this.subject = subject;
         this.emailTo = emailTo;
-        this.subject = subject;
-        this.text = text;
+        this.emailFrom = emailFrom;
+        this.email = email;
+        this.userId = userId;
     }
 
-    public String getText() {
-        return text;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setText(String text) {
-        this.text = text;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
-    public String getSubject() {
-        return subject;
+    public String getEmail() {
+        return email;
     }
 
-    public void setSubject(String subject) {
-        this.subject = subject;
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getEmailFrom() {
+        return emailFrom;
+    }
+
+    public void setEmailFrom(String emailFrom) {
+        this.emailFrom = emailFrom;
     }
 
     public String getEmailTo() {
@@ -38,11 +55,19 @@ public class EmailDto {
         this.emailTo = emailTo;
     }
 
-    public String getEmailFrom() {
-        return emailFrom;
+    public String getSubject() {
+        return subject;
     }
 
-    public void setEmailFrom(String emailFrom) {
-        this.emailFrom = emailFrom;
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public void setText(String text) {
+        this.text = text;
     }
 }
