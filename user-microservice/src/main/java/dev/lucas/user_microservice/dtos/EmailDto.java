@@ -3,8 +3,6 @@ package dev.lucas.user_microservice.dtos;
 public class EmailDto {
 
     private Long userId;
-    private String email;
-    private String emailFrom;
     private String emailTo;
     private String subject;
     private String text;
@@ -14,12 +12,10 @@ public class EmailDto {
     }
 
     //AllArgs Constructor
-    public EmailDto(String text, String subject, String emailTo, String emailFrom, String email, Long userId) {
+    public EmailDto(String text, String subject, String emailTo, Long userId) {
         this.text = text;
         this.subject = subject;
         this.emailTo = emailTo;
-        this.emailFrom = emailFrom;
-        this.email = email;
         this.userId = userId;
     }
 
@@ -31,21 +27,6 @@ public class EmailDto {
         this.userId = userId;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getEmailFrom() {
-        return emailFrom;
-    }
-
-    public void setEmailFrom(String emailFrom) {
-        this.emailFrom = emailFrom;
-    }
 
     public String getEmailTo() {
         return emailTo;
