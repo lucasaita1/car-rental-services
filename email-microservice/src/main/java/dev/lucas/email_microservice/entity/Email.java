@@ -21,9 +21,9 @@ public class Email {
     private String id;
     private String userId;
     private String from;
-    private String to;
+    private String emailTo;
     private String subject;
-    private String body;
+    private String text;
     private LocalDateTime sentAt;
     private EmailStatus status;
 
