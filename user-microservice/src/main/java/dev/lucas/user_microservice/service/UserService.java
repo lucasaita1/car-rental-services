@@ -23,8 +23,12 @@ public class UserService {
     public UserModel saveUser(UserModel userModel){
 
         userModel.setPassword(passwordEncoder.encode(userModel.getPassword()));
-        userProducer.sendRegisterEmail(userModel);
-        return userRepository.save(userModel);
+
+        // O evento precisa ser publicado depois do save: antes disso o id ainda
+        // não foi gerado pelo banco e o EmailDto sairia com userId nulo.
+        UserModel savedUser = userRepository.save(userModel);
+        userProducer.sendRegisterEmail(savedUser);
+        return savedUser;
     }
 
     public List<UserModel> getAllUsers(){
@@ -48,7 +52,9 @@ public class UserService {
             }
 
             if (user.getPassword() != null && !user.getPassword().isBlank()) {
-                existingUser.setPassword(user.getPassword());
+                // A senha precisa passar pelo mesmo encoder usado no cadastro,
+                // senão o BCrypt não casa no login e o usuário perde o acesso.
+                existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
             }
 
             return existingUser;

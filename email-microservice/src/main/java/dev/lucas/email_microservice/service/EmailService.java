@@ -11,6 +11,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class EmailService {
@@ -18,13 +20,11 @@ public class EmailService {
     private final EmailRepository emailRepository;
     private final JavaMailSender mailSender;
 
-    Dotenv dotenv =  Dotenv.load();
+    // ignoreIfMissing permite que a classe seja construída sem o arquivo .env,
+    // como acontece no pipeline de CI, onde o .env não é versionado.
+    private final Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 
-    private String emailFrom;
-
-    {
-        emailFrom = dotenv.get("EMAIL_FROM");
-    }
+    private final String emailFrom = dotenv.get("EMAIL_FROM");
 
 
     @Transactional
@@ -43,6 +43,8 @@ public class EmailService {
             email.setStatus(EmailStatus.ERROR);
             System.out.println("erro ao enviar email" + e.getMessage());
         }finally {
+            email.setSentAt(LocalDateTime.now());
+            email.setFrom(emailFrom);
             emailRepository.save(email);
         }
     }

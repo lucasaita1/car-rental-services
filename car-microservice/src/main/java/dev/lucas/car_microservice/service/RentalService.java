@@ -31,6 +31,10 @@ public class RentalService {
             return "Este carro já está alugado no momento.";
         }
 
+        if (car.getStatus() == CarStatus.MAINTENANCE) {
+            return "Este carro está em manutenção e não pode ser alugado.";
+        }
+
         // Busca o cache do usuário no Redis
         String userKey = "user:" + userId;
         Object userCache = redisTemplate.opsForValue().get(userKey);
@@ -45,6 +49,7 @@ public class RentalService {
         // Atualiza as informações de aluguel do carro
         car.setRentalDate(LocalDate.now());
         car.setStatus(CarStatus.RENTED);
+        car.setUserId(userId);
         carRepository.save(car);
 
         // Cria DTO de e-mail com as informações do carro e do usuário
@@ -78,6 +83,7 @@ public class RentalService {
 
         car.setStatus(CarStatus.AVAILABLE);
         car.setRentalDate(null);
+        car.setUserId(null);
         carRepository.save(car);
 
         return "Carro devolvido e status atualizado para disponível.";

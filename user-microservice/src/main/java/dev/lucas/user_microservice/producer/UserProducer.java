@@ -19,7 +19,9 @@ public class UserProducer {
       email.setUserId(user.getId());
       email.setEmailTo(user.getEmail());
       email.setSubject("Register Email");
-      email.setText("Olá " + user.getUsername() + ", obrigado por se cadastrar em nosso sistema. Esta é uma mensagem automática de boas-vindas.");
+      // getUsername() é sobrescrito em UserModel para devolver string vazia,
+      // então o nome do cliente vem de getName().
+      email.setText("Olá " + user.getName() + ", obrigado por se cadastrar em nosso sistema. Esta é uma mensagem automática de boas-vindas.");
 
       rabbitTemplate.convertAndSend("", routingKey, email);
   }
