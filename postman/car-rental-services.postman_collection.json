@@ -1,0 +1,357 @@
+{
+  "info": {
+    "_postman_id": "9c1f3a52-7b4d-4e18-a0c6-2f5b8d3e9a71",
+    "name": "Car Rental Services",
+    "description": "Coleção completa dos microsserviços de locação de veículos.\n\n**Serviços**\n- user-microservice: http://localhost:8081\n- car-microservice: http://localhost:8082\n- email-microservice: sem HTTP (consumidor RabbitMQ da fila `register_email`)\n\n**Como usar**\n1. Rode `Users / Register` para criar o usuário (dispara o e-mail de boas-vindas).\n2. Rode `Auth / Login` — o script de teste salva `token` e `userId` nas variáveis da coleção automaticamente.\n3. Rode `Cars / Create Car` — o script salva `carId`.\n4. Rode `Rental / Rent Car` e depois `Rental / Return Car`.\n\nApenas as rotas do user-microservice exigem `Authorization: Bearer {{token}}`. O car-microservice não tem Spring Security configurado.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "userUrl", "value": "http://localhost:8081", "type": "string" },
+    { "key": "carUrl", "value": "http://localhost:8082", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "userId", "value": "1", "type": "string" },
+    { "key": "carId", "value": "1", "type": "string" },
+    { "key": "userEmail", "value": "lucas@example.com", "type": "string" },
+    { "key": "userPassword", "value": "senhaSegura123", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Autenticação no user-microservice.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var body = pm.response.json();",
+                  "",
+                  "if (body.token) {",
+                  "    pm.collectionVariables.set('token', body.token);",
+                  "    console.log('Token salvo na variavel {{token}}');",
+                  "}",
+                  "",
+                  "if (body.user && body.user.id) {",
+                  "    pm.collectionVariables.set('userId', body.user.id);",
+                  "    console.log('userId salvo: ' + body.user.id);",
+                  "}",
+                  "",
+                  "pm.test('Retornou token JWT', function () {",
+                  "    pm.expect(body).to.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{userUrl}}/auth/users/login",
+              "host": ["{{userUrl}}"],
+              "path": ["auth", "users", "login"]
+            },
+            "description": "Rota pública. Autentica por e-mail e senha, devolve o JWT (HMAC256) e, em paralelo, envia os dados do usuário via RestTemplate para `POST {{carUrl}}/cache/user`, que grava no Redis com TTL de 120 minutos.\n\nSe o car-microservice estiver fora do ar, o login continua funcionando — a chamada é envolvida em try/catch."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "CRUD de usuários. Só o register é público; o restante exige Bearer token.",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var body = pm.response.json();",
+                  "if (body.id) {",
+                  "    pm.collectionVariables.set('userId', body.id);",
+                  "}",
+                  "",
+                  "pm.test('Senha nao retorna no corpo', function () {",
+                  "    pm.expect(body).to.not.have.property('password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lucas Aita\",\n  \"email\": \"{{userEmail}}\",\n  \"cpf\": \"12345678901\",\n  \"cnh\": \"98765432100\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{userUrl}}/users/register",
+              "host": ["{{userUrl}}"],
+              "path": ["users", "register"]
+            },
+            "description": "Rota pública. Criptografa a senha com BCrypt, publica um evento na fila `register_email` do RabbitMQ e salva no MySQL.\n\nO email-microservice consome esse evento e envia o e-mail de boas-vindas, gravando o resultado no MongoDB com status SENT ou ERROR."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{userUrl}}/users",
+              "host": ["{{userUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Requer autenticação. Rode o Login antes."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User By Id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{userUrl}}/users/{{userId}}",
+              "host": ["{{userUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Requer autenticação. Retorna 404 se o ID não existir."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lucas Aita Atualizado\",\n  \"email\": \"{{userEmail}}\",\n  \"cpf\": \"12345678901\",\n  \"cnh\": \"98765432100\",\n  \"password\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{userUrl}}/users/{{userId}}",
+              "host": ["{{userUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Requer autenticação. Só name, email e password são atualizados; campos nulos ou em branco são ignorados.\n\nAtenção: a senha enviada aqui é gravada SEM passar pelo BCrypt — deixe o campo vazio até isso ser corrigido, ou o login deixará de funcionar para esse usuário."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{userUrl}}/users/{{userId}}",
+              "host": ["{{userUrl}}"],
+              "path": ["users", "{{userId}}"]
+            },
+            "description": "Requer autenticação. Retorna 204 No Content em caso de sucesso, 404 se o ID não existir."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cars",
+      "description": "CRUD da frota no car-microservice. Sem autenticação.",
+      "item": [
+        {
+          "name": "Create Car",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var body = pm.response.json();",
+                  "if (body.id) {",
+                  "    pm.collectionVariables.set('carId', body.id);",
+                  "    console.log('carId salvo: ' + body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Honda Civic\",\n  \"color\": \"Preto\",\n  \"plate\": \"ABC1D23\",\n  \"year\": 2023,\n  \"rentalDate\": null,\n  \"returnDate\": null,\n  \"userId\": null\n}"
+            },
+            "url": {
+              "raw": "{{carUrl}}/cars",
+              "host": ["{{carUrl}}"],
+              "path": ["cars"]
+            },
+            "description": "Cadastra um veículo. Datas no formato ISO (yyyy-MM-dd) ou null.\n\nO campo `status` não é aceito no request — o carro nasce com status nulo e passa a RENTED/AVAILABLE pelos endpoints de aluguel."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Cars",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{carUrl}}/cars",
+              "host": ["{{carUrl}}"],
+              "path": ["cars"]
+            },
+            "description": "Lista toda a frota."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Car By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{carUrl}}/cars/{{carId}}",
+              "host": ["{{carUrl}}"],
+              "path": ["cars", "{{carId}}"]
+            },
+            "description": "Busca por ID. Lança RuntimeException ('Car not found') se não existir, resultando em 500."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Car",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{carUrl}}/cars/{{carId}}",
+              "host": ["{{carUrl}}"],
+              "path": ["cars", "{{carId}}"]
+            },
+            "description": "Remove o veículo. Retorna 204 No Content."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rental",
+      "description": "Aluguel e devolução. Estes endpoints retornam texto puro, não JSON.",
+      "item": [
+        {
+          "name": "Rent Car",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "console.log('Resposta: ' + pm.response.text());",
+                  "",
+                  "pm.test('Usuario estava em cache', function () {",
+                  "    pm.expect(pm.response.text()).to.not.include('nao encontrado no cache');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{carUrl}}/rental/rent/{{carId}}/user/{{userId}}",
+              "host": ["{{carUrl}}"],
+              "path": ["rental", "rent", "{{carId}}", "user", "{{userId}}"]
+            },
+            "description": "Sem corpo. Exige que o usuário esteja no cache Redis — ou seja, que o Login tenha sido feito nos últimos 120 minutos com o car-microservice no ar.\n\nRespostas possíveis (texto puro):\n- 'Carro alugado com sucesso! Dados preparados para envio ao serviço de e-mail.'\n- 'Este carro já está alugado no momento.'\n- 'Usuário não encontrado no cache. É necessário fazer login novamente.'\n\nO e-mail de confirmação de aluguel ainda não é publicado no RabbitMQ."
+          },
+          "response": []
+        },
+        {
+          "name": "Return Car",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{carUrl}}/rental/return/{{carId}}",
+              "host": ["{{carUrl}}"],
+              "path": ["rental", "return", "{{carId}}"]
+            },
+            "description": "Sem corpo. Volta o status para AVAILABLE e limpa a rentalDate.\n\nRespostas possíveis (texto puro):\n- 'Carro devolvido e status atualizado para disponível.'\n- 'Carro já está disponível, não há aluguel ativo.'\n- 'Carro não encontrado!'"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cache",
+      "description": "Cache de usuários no Redis. Normalmente chamado pelo login, mas exposto para testes manuais.",
+      "item": [
+        {
+          "name": "Save User Cache",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{userId}}\",\n  \"name\": \"Lucas Aita\",\n  \"cpf\": \"12345678901\",\n  \"email\": \"{{userEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{carUrl}}/cache/user",
+              "host": ["{{carUrl}}"],
+              "path": ["cache", "user"]
+            },
+            "description": "Grava na chave `user:{id}` do Redis com TTL de 120 minutos. Útil para testar o aluguel sem passar pelo user-microservice."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Cache",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{carUrl}}/cache/user/{{userId}}",
+              "host": ["{{carUrl}}"],
+              "path": ["cache", "user", "{{userId}}"]
+            },
+            "description": "Lê o usuário em cache. Retorna corpo vazio se a chave expirou ou nunca existiu."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
