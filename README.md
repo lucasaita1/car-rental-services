@@ -121,6 +121,10 @@ GET    /cars/{id}                            Buscar por ID
 DELETE /cars/{id}                            Remover veículo
 POST   /rental/rent/{carId}/user/{userId}    Alugar veículo
 POST   /rental/return/{carId}                Devolver veículo
+GET    /rental/user/{userId}                 Histórico de locações do cliente
+GET    /rental/car/{carId}                   Histórico de locações do veículo
+GET    /rental/active                        Locações em aberto
+GET    /rental/overdue                       Locações com prazo vencido
 POST   /cache/user                           Gravar usuário no Redis
 GET    /cache/user/{id}                      Ler usuário em cache
 ```
@@ -537,6 +541,26 @@ Sequência sugerida para um teste ponta a ponta:
 | `status` | VARCHAR | AVAILABLE, RENTED ou MAINTENANCE |
 | `user_id` | BIGINT | cliente que alugou |
 
+### Locações (MySQL, porta 3307)
+
+**TB_RENTALS** — fonte da verdade sobre aluguéis. A linha sobrevive à devolução: o registro é encerrado, nunca apagado.
+
+| Coluna | Tipo | Observação |
+|---|---|---|
+| `id` | BIGINT | PRIMARY KEY, AUTO_INCREMENT |
+| `car_id` | BIGINT | veículo alugado |
+| `user_id` | BIGINT | cliente, vindo do user-microservice |
+| `user_name`, `user_email`, `user_cpf` | VARCHAR | cópia dos dados do cliente no momento da locação |
+| `car_model`, `car_plate` | VARCHAR | cópia dos dados do veículo |
+| `rental_date` | DATE | início da locação |
+| `expected_return_date` | DATE | prazo combinado, opcional |
+| `return_date` | DATE | devolução efetiva, nula enquanto ativa |
+| `status` | VARCHAR | `ACTIVE` ou `FINISHED` |
+
+Os dados de cliente e veículo são gravados como cópia, e não como referência. O cliente vive em outro microsserviço, com banco próprio, então não há join possível: sem a cópia, um relatório histórico precisaria chamar o user-microservice para cada linha. O veículo pode ser removido por `DELETE /cars/{id}`, o que deixaria o histórico sem saber qual carro foi alugado.
+
+As colunas de aluguel em `car_model` (`rental_date`, `return_date`, `user_id`) passam a ser um espelho da locação corrente, mantido para consulta rápida de estoque. Em caso de divergência, `TB_RENTALS` prevalece.
+
 Ambos os serviços usam `spring.jpa.hibernate.ddl-auto=update`, então o Hibernate cria e evolui as tabelas automaticamente.
 
 ### E-mails (MongoDB)
@@ -703,7 +727,7 @@ docker compose -f car-microservice/docker-compose.yml down -v
 ## Melhorias Futuras
 
 - [ ] Publicar o evento de aluguel no RabbitMQ (o `RentalEmailDto` já é montado, mas não é enviado)
-- [ ] Persistir `user_id` no aluguel, registrando quem alugou o veículo
+- [ ] Impedir locação concorrente do mesmo veículo com trava no banco, não apenas com a checagem em memória
 - [ ] Aplicar `PasswordEncoder` também na atualização de usuário
 - [ ] Validar JWT no car-microservice, impedindo aluguel em nome de terceiros
 - [ ] Corrigir `UserModel.getUsername()`, que hoje retorna string vazia e deixa o e-mail sem o nome do cliente
