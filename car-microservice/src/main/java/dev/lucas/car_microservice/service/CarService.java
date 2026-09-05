@@ -21,6 +21,7 @@ public class CarService {
         return carRepository.findById(id).orElseThrow(() -> new RuntimeException("Car not found"));
     }
 
+
     public List<CarModel> findAll(){
         return carRepository.findAll();
     }
