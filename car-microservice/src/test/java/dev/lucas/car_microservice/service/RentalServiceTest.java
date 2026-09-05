@@ -21,8 +21,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -58,14 +56,13 @@ class RentalServiceTest {
                 CarStatus.AVAILABLE,
                 null
         );
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
     @Test
     @DisplayName("Deve alugar carro disponível com sucesso")
     void shouldRentAvailableCar() {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         Map<String, Object> userData = new HashMap<>();
         userData.put("name", "Lucas");
@@ -102,6 +99,7 @@ class RentalServiceTest {
     @DisplayName("Não deve alugar quando usuário não está no cache")
     void shouldNotRentWhenUserNotInCache() {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("user:42")).thenReturn(null);
 
         String result = rentalService.rentCar(1L, 42L);
