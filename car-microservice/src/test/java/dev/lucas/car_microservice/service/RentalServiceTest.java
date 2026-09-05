@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -113,12 +114,13 @@ class RentalServiceTest {
     void shouldThrowWhenCarNotFoundOnRent() {
         when(carRepository.findById(99L)).thenReturn(Optional.empty());
 
-        try {
-            String result = rentalService.rentCar(99L, 42L);
-            assertThat(result).isNull();
-        } catch (RuntimeException ex) {
-            assertThat(ex.getMessage()).contains("não encontrado");
-        }
+        // Fixa o contrato: alugar carro inexistente estoura, e não devolve mensagem.
+        // Diferente do returnCar, que devolve texto. A assimetria é intencional no serviço.
+        assertThatThrownBy(() -> rentalService.rentCar(99L, 42L))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Carro não encontrado.");
+
+        verify(carRepository, never()).save(any());
     }
 
     @Test
@@ -131,7 +133,15 @@ class RentalServiceTest {
         String result = rentalService.returnCar(1L);
 
         assertThat(result).contains("devolvido");
-        verify(carRepository).save(any(CarModel.class));
+
+        // Verificar apenas que save() foi chamado não prova que o carro voltou
+        // ao estoque. O que importa é o estado persistido.
+        ArgumentCaptor<CarModel> captor = ArgumentCaptor.forClass(CarModel.class);
+        verify(carRepository).save(captor.capture());
+
+        CarModel devolvido = captor.getValue();
+        assertThat(devolvido.getStatus()).isEqualTo(CarStatus.AVAILABLE);
+        assertThat(devolvido.getRentalDate()).isNull();
     }
 
     @Test
@@ -141,7 +151,10 @@ class RentalServiceTest {
 
         String result = rentalService.returnCar(1L);
 
-        assertThat(result).contains("disponível");
+        // A palavra "disponível" aparece nas duas mensagens do fluxo de devolução,
+        // então a asserção precisa ser sobre o trecho que só existe na recusa.
+        assertThat(result).contains("não há aluguel ativo");
+        assertThat(availableCar.getStatus()).isEqualTo(CarStatus.AVAILABLE);
         verify(carRepository, never()).save(any());
     }
 
@@ -154,5 +167,80 @@ class RentalServiceTest {
 
         assertThat(result).contains("não encontrado");
         verify(carRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve consultar o cache na chave user:{userId} acordada com o user-microservice")
+    void shouldReadCacheUnderAgreedKey() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:7")).thenReturn(Map.of("name", "Ana", "email", "ana@x.com", "cpf", "1"));
+
+        rentalService.rentCar(1L, 7L);
+
+        // Se o formato da chave divergir do que o CacheService grava no login,
+        // todo aluguel passa a falhar por "usuário não encontrado no cache".
+        verify(valueOperations).get("user:7");
+    }
+
+    @Test
+    @DisplayName("Não deve alugar carro que está em manutenção")
+    void shouldNotRentCarUnderMaintenance() {
+        availableCar.setStatus(CarStatus.MAINTENANCE);
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+
+        String result = rentalService.rentCar(1L, 42L);
+
+        assertThat(result).contains("em manutenção");
+        // A recusa acontece antes de consultar o cache, então nada é persistido.
+        verify(carRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve registrar quem alugou o veículo")
+    void shouldPersistRenterId() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+
+        rentalService.rentCar(1L, 42L);
+
+        ArgumentCaptor<CarModel> captor = ArgumentCaptor.forClass(CarModel.class);
+        verify(carRepository).save(captor.capture());
+
+        assertThat(captor.getValue().getUserId()).isEqualTo(42L);
+    }
+
+    @Test
+    @DisplayName("Devolução deve liberar o vínculo com o locatário")
+    void shouldClearRenterIdOnReturn() {
+        availableCar.setStatus(CarStatus.RENTED);
+        availableCar.setUserId(42L);
+        availableCar.setRentalDate(LocalDate.now());
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+
+        rentalService.returnCar(1L);
+
+        ArgumentCaptor<CarModel> captor = ArgumentCaptor.forClass(CarModel.class);
+        verify(carRepository).save(captor.capture());
+
+        // Um carro disponível não pode continuar apontando para o locatário anterior.
+        assertThat(captor.getValue().getUserId()).isNull();
+    }
+
+    @Test
+    @DisplayName("Aluguel não deve alterar a data de devolução prevista")
+    void shouldNotTouchReturnDateOnRent() {
+        availableCar.setReturnDate(LocalDate.of(2026, 12, 25));
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+
+        rentalService.rentCar(1L, 42L);
+
+        ArgumentCaptor<CarModel> captor = ArgumentCaptor.forClass(CarModel.class);
+        verify(carRepository).save(captor.capture());
+
+        assertThat(captor.getValue().getReturnDate()).isEqualTo(LocalDate.of(2026, 12, 25));
     }
 }
