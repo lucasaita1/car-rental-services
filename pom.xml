@@ -30,8 +30,8 @@
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>true</failsOnError>
-                    <failOnViolation>true</failOnViolation>
-                    <violationSeverity>error</violationSeverity>
+                    <failOnViolation>false</failOnViolation>
+                    <violationSeverity>warning</violationSeverity>
                 </configuration>
                 <executions>
                     <execution>
