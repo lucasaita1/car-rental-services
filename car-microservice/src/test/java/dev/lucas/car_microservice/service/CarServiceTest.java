@@ -43,7 +43,8 @@ class CarServiceTest {
                 2024,
                 null,
                 null,
-                CarStatus.AVAILABLE
+                CarStatus.AVAILABLE,
+                null
         );
     }
 
@@ -87,7 +88,7 @@ class CarServiceTest {
     void shouldFindAll() {
         CarModel outro = new CarModel(
                 2L, "Onix", "Branco", "XYZ-9Z99", 2022,
-                LocalDate.now(), null, CarStatus.RENTED
+                LocalDate.now(), null, CarStatus.RENTED, null
         );
         when(carRepository.findAll()).thenReturn(List.of(car, outro));
 

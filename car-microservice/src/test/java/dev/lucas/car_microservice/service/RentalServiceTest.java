@@ -55,7 +55,8 @@ class RentalServiceTest {
                 2024,
                 null,
                 null,
-                CarStatus.AVAILABLE
+                CarStatus.AVAILABLE,
+                null
         );
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
