@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  mysql-user:
+    image: mysql:8.1
+    container_name: car_rental_mysql_user
+    restart: unless-stopped
+    env_file:
+      - user-microservice/.env
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data_user:/var/lib/mysql
+
+  mysql-car:
+    image: mysql:8.1
+    container_name: car_rental_mysql_car
+    restart: unless-stopped
+    env_file:
+      - car-microservice/.env
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data_car:/var/lib/mysql
+
+  mongo:
+    image: mongo:7
+    container_name: car_rental_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  user-service:
+    build: ./user-microservice
+    container_name: user-microservice
+    restart: unless-stopped
+    depends_on:
+      - mysql-user
+    env_file:
+      - user-microservice/.env
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-user:3306/rental_db
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/email_db
+
+  car-service:
+    build: ./car-microservice
+    container_name: car-microservice
+    restart: unless-stopped
+    depends_on:
+      - mysql-car
+    env_file:
+      - car-microservice/.env
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-car:3306/rental_db
+
+  email-service:
+    build: ./email-microservice
+    container_name: email-microservice
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/email_db
+
+volumes:
+  mysql_data_user:
+  mysql_data_car:
+  mongo_data:
