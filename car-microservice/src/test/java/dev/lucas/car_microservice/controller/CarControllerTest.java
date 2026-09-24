@@ -4,6 +4,7 @@ import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.service.CarService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Disabled("Desabilitado temporariamente para demonstrar o Quality Gate bloqueando (Aula 3).")
 @WebMvcTest(CarController.class)
 class CarControllerTest {
 
