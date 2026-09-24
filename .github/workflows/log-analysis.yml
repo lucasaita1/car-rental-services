@@ -1,0 +1,35 @@
+name: IA analisando logs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  analisar-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+
+      - name: Login GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: IA analisa logs
+        id: ia
+        env:
+          GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+        run: bash scripts/log-analysis.sh
+        continue-on-error: true
+
+      - name: Criar issue se crítico
+        if: steps.ia.outcome == 'failure'
+        run: |
+          gh issue create \
+            --title "Erro crítico detectado nos logs" \
+            --body-file ia-decision.txt
+
+      - name: Falhar o job se a IA detectou problema crítico
+        if: steps.ia.outcome == 'failure'
+        run: exit 1

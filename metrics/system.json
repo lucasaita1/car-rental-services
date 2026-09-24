@@ -1,0 +1,8 @@
+{
+  "cpu_percent": 91,
+  "memory_percent": 89,
+  "jvm_heap_used_percent": 94,
+  "latency_ms_p95": 2800,
+  "error_rate_percent": 12,
+  "requests_per_minute": 620
+}

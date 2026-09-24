@@ -1,0 +1,35 @@
+name: IA analisando métricas
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  analisar-metricas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+
+      - name: Login GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: IA analisa métricas
+        id: ia
+        env:
+          GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+        run: bash scripts/metrics-analysis.sh
+        continue-on-error: true
+
+      - name: Criar issue se houver risco
+        if: steps.ia.outcome == 'failure'
+        run: |
+          gh issue create \
+            --title "Risco detectado nas métricas" \
+            --body-file ia-decision.txt
+
+      - name: Falhar o job se a IA detectou risco
+        if: steps.ia.outcome == 'failure'
+        run: exit 1

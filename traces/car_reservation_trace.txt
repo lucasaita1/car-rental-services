@@ -1,0 +1,6 @@
+API Gateway -> car-microservice -> Auth Service -> Payment Service -> PostgreSQL Database
+Tempo API Gateway: 18ms
+Tempo car-microservice (validacao da reserva): 45ms
+Tempo Auth Service: 60ms
+Tempo Payment Service: 3800ms
+Timeout na consulta ao PostgreSQL Database

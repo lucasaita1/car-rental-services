@@ -45,6 +45,15 @@ jobs:
       - name: Cobertura de testes (JaCoCo)
         run: mvn -B verify -pl car-microservice -am
 
+      # --- Atividade 1: Quality Gate com IA real ---
+      # Lê car-microservice/target/site/jacoco/jacoco.xml (gerado pelo step
+      # acima) e pergunta à IA se o pipeline pode avançar. Bloqueia o job
+      # (exit 1) se a IA reprovar.
+      - name: AI Quality Gate (aprova ou bloqueia o pipeline)
+        env:
+          GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+        run: bash scripts/quality-gate.sh
+
       - name: Publicar relatório JaCoCo
         if: always()
         uses: actions/upload-artifact@v4

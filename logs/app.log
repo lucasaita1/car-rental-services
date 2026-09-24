@@ -1,0 +1,6 @@
+INFO  c.e.car.CarMicroserviceApplication - Aplicação iniciada na porta 8080
+INFO  c.e.car.controller.CarController - GET /api/cars/42 - requisição recebida
+INFO  c.e.car.service.ReservationService - Reserva criada com sucesso para o veículo id=42
+WARN  c.e.car.service.CarService - Tempo de resposta elevado ao consultar disponibilidade (920ms)
+ERROR c.e.car.repository.CarRepository - Falha ao conectar ao banco de dados: timeout na conexão
+ERROR c.e.car.service.PaymentClient - Falha crítica ao processar pagamento da reserva: HTTP 500 recebido do serviço de pagamento
