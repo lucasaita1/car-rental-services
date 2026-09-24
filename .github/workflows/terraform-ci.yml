@@ -1,0 +1,51 @@
+name: Terraform CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/ci/**'
+      - '.github/workflows/terraform-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'infra/ci/**'
+      - '.github/workflows/terraform-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform (local, sem credenciais)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infra/ci
+
+    steps:
+      - name: Clonar o repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+
+      - name: Formatar (fmt -check)
+        run: terraform fmt -check -recursive
+
+      - name: Inicializar
+        run: terraform init
+
+      - name: Validar
+        run: terraform validate
+
+      - name: Planejar
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Aplicar (somente execucao manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve -input=false tfplan
