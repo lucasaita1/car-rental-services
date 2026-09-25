@@ -3,8 +3,8 @@ package dev.lucas.user_microservice.config;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.enums.UserRole;
 import dev.lucas.user_microservice.repository.UserRepository;
-import io.github.cdimascio.dotenv.Dotenv;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -17,13 +17,18 @@ public class AdminBootstrap implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${ADMIN_EMAIL:}")
+    private String adminEmail;
+
+    @Value("${ADMIN_PASSWORD:}")
+    private String adminPassword;
+
+    @Value("${ADMIN_NAME:Administrador}")
+    private String adminName;
+
     @Override
     public void run(String... args) {
-        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
-        ensureAdmin(
-                dotenv.get("ADMIN_EMAIL"),
-                dotenv.get("ADMIN_PASSWORD"),
-                dotenv.get("ADMIN_NAME", "Administrador"));
+        ensureAdmin(adminEmail, adminPassword, adminName);
     }
 
     @Transactional

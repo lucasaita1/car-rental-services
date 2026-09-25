@@ -5,8 +5,8 @@ import dev.lucas.user_microservice.dtos.LoginRequest;
 import dev.lucas.user_microservice.dtos.UserCacheDto;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.repository.UserRepository;
-import io.github.cdimascio.dotenv.Dotenv;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,8 +27,8 @@ public class LoginController {
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
 
-    private final String carServiceUrl = Dotenv.configure().ignoreIfMissing().load()
-            .get("CAR_SERVICE_URL", "http://localhost:8082");
+    @Value("${CAR_SERVICE_URL:http://localhost:8082}")
+    private String carServiceUrl;
 
     /**
      * Faz login, gera o JWT e envia os dados do usuário autenticado

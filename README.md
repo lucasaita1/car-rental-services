@@ -248,74 +248,36 @@ Maven não precisa estar instalado: cada módulo traz o wrapper (`./mvnw`).
 
 ## Configuração
 
-Cada serviço lê o seu próprio arquivo `.env`, localizado na **raiz do módulo**. Um `.env` na raiz do repositório consolida todas as variáveis como referência. Nenhum deles deve ser versionado com valores reais.
+Cada serviço lê o próprio `.env` na raiz do módulo, pelo mecanismo nativo do Spring Boot (`spring.config.import=optional:file:.env[.properties]`), sem biblioteca extra. Funciona rodando tanto da pasta do módulo quanto da raiz do repositório. Variáveis de ambiente do sistema têm prioridade sobre o arquivo, o que é usado no Docker.
 
-### user-microservice/.env
+Copie o modelo de cada serviço e preencha:
 
-```env
-# MySQL
-MYSQL_ROOT_PASSWORD=sua_senha_root
-MYSQL_DATABASE=user_db
-MYSQL_USER=user_app
-MYSQL_PASSWORD=sua_senha
-
-# JWT (o mesmo valor no car-microservice)
-SECRET_TOKEN=uma_chave_secreta_longa_e_aleatoria
-
-# Administrador criado na subida
-ADMIN_NAME=Administrador
-ADMIN_EMAIL=admin@carrental.local
-ADMIN_PASSWORD=uma_senha_forte
-
-# RabbitMQ
-RABBITMQ_ADDRESSES=amqps://usuario:senha@host/vhost
-RABBITMQ_USERNAME=usuario
-RABBITMQ_PASSWORD=senha
-RABBITMQ_HOST=host.rmq.cloudamqp.com
-RABBITMQ_VHOST=vhost
-RABBITMQ_PORT=5671
-RABBITMQ_SSL=true
+```bash
+cp user-microservice/.env.example user-microservice/.env
 ```
 
-### car-microservice/.env
-
-```env
-# MySQL
-MYSQL_ROOT_PASSWORD1=sua_senha_root
-MYSQL_DATABASE1=car_db
-MYSQL_USER1=car_app
-MYSQL_PASSWORD1=sua_senha
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=sua_senha_redis
-
-# JWT (mesmo valor do user-microservice)
-SECRET_TOKEN=uma_chave_secreta_longa_e_aleatoria
+```bash
+cp car-microservice/.env.example car-microservice/.env
 ```
 
-Variáveis opcionais nos dois serviços: `FRONTEND_URL` (origens liberadas no CORS, separadas por vírgula; padrão `http://localhost:5173`). No user-microservice, `CAR_SERVICE_URL` (padrão `http://localhost:8082`).
-
-### email-microservice/.env
-
-```env
-# RabbitMQ
-RABBITMQ_ADDRESSES=amqps://usuario:senha@host/vhost
-RABBITMQ_USERNAME=usuario
-RABBITMQ_PASSWORD=senha
-RABBITMQ_HOST=host.rmq.cloudamqp.com
-RABBITMQ_VHOST=vhost
-RABBITMQ_PORT=5671
-RABBITMQ_SSL=true
-
-# SMTP
-EMAIL_USERNAME=seuemail@gmail.com
-EMAIL_PASSWORD=sua_senha_de_app
-EMAIL_FROM=seuemail@gmail.com
+```bash
+cp email-microservice/.env.example email-microservice/.env
 ```
 
-> `EMAIL_FROM` é lido diretamente pelo `EmailService` através da biblioteca Dotenv. Sem essa variável o remetente vai nulo e todo envio falha.
+Os modelos listam todas as chaves. As principais:
+
+| Chave | Serviço | Observação |
+|---|---|---|
+| `SECRET_TOKEN` | user, car | Mesmo valor nos dois: o car valida o JWT emitido pelo user |
+| `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD` | user, car | Usadas também pelo container do MySQL |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | car | |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | user | Administrador criado na subida |
+| `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM` | email | Senha de app do Gmail, **sem aspas** |
+| `FRONTEND_URL` | user, car | Origens liberadas no CORS |
+
+O formato é o de `.properties`: `CHAVE=valor`, sem aspas e sem `export`. Aspas viram parte do valor.
+
+> Se `EMAIL_FROM` ficar vazio, o remetente passa a ser o próprio `EMAIL_USERNAME`.
 
 **Encoding:** salve os arquivos `.env` e `application.properties` sempre em UTF-8. O POM pai define `project.build.sourceEncoding=UTF-8`, e um único caractere acentuado gravado em ISO-8859-1 — mesmo dentro de um comentário — interrompe o build com `MalformedInputException`.
 
@@ -325,7 +287,7 @@ EMAIL_FROM=seuemail@gmail.com
 |---|:---:|---|
 | user-microservice | 8081 | MySQL em `localhost:3306` |
 | car-microservice | 8082 | MySQL em `localhost:3307` e Redis em `localhost:6379` |
-| email-microservice | não expõe HTTP | MongoDB em `localhost:27017` |
+| email-microservice | 8083 (sem API) | MongoDB em `localhost:27017` |
 
 ---
 
@@ -769,44 +731,12 @@ npm run type-check && npm run lint
 |---|---|---|
 | `MalformedInputException: Input length = 1` | Arquivo de resources salvo em ISO-8859-1 | `iconv -f ISO-8859-1 -t UTF-8 arquivo > tmp && mv tmp arquivo`. No IntelliJ, fixe UTF-8 em Settings, Editor, File Encodings |
 | `java: cannot find symbol: method setX()` | Atributo ausente na entidade que o Lombok deveria gerar | Verifique se o campo existe na classe anotada com `@Getter` e `@Setter` |
-| `SECRET not found in .env file` | `SECRET_TOKEN` ausente | Adicione a variável em `user-microservice/.env` e reinicie |
-| `Dotenv.load()` falha na inicialização | O `.env` precisa estar na raiz do módulo | Crie o arquivo dentro da pasta do serviço, não na raiz do repositório |
+| `Could not resolve placeholder 'SECRET_TOKEN'` | Chave ausente no `.env` do serviço | Copie o `.env.example` e preencha |
 | Login retorna 200 mas o Redis fica vazio | car-microservice fora do ar | A chamada é tolerante a falha e só registra em log; suba o serviço na porta 8082 |
 | `Usuário não encontrado no cache` ao alugar | Cache expirado após 120 minutos | Faça login novamente |
-| MySQL do car-service não cria o banco | O `.env` usa nomes com sufixo `1`, que a imagem oficial não reconhece | Veja a nota abaixo |
 | E-mail não enviado e Mongo grava `ERROR` | `EMAIL_FROM` ausente, ou senha comum do Gmail em vez de senha de app | Gere uma senha de app e preencha `EMAIL_FROM` |
 | Porta já em uso | Outro processo ocupando 3306, 3307, 6379 ou 27017 | `lsof -i :3306` e finalize, ou altere a porta no Compose |
 
-### Nota sobre o MySQL do car-microservice
-
-O `car-microservice/docker-compose.yml` usa `env_file: .env`, e esse arquivo define as variáveis com sufixo `1` (`MYSQL_DATABASE1`, `MYSQL_USER1`, e assim por diante). A imagem `mysql:8.1` só reconhece os nomes sem sufixo, então o container sobe mas não cria o banco nem o usuário da aplicação, e o Spring falha com *Access denied* ou *Unknown database*.
-
-A correção mais direta é mapear os nomes explicitamente no Compose, mantendo o `.env` como está:
-
-```yaml
-services:
-  mysql:
-    image: mysql:8.1
-    container_name: mysql-container
-    restart: always
-    env_file:
-      - .env
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD1}
-      MYSQL_DATABASE: ${MYSQL_DATABASE1}
-      MYSQL_USER: ${MYSQL_USER1}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD1}
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-```
-
-Se o volume já foi criado com a configuração anterior, o MySQL ignora as variáveis nas próximas subidas, porque só inicializa uma vez. Recrie o volume:
-
-```bash
-docker compose -f car-microservice/docker-compose.yml down -v
-```
 
 ---
 

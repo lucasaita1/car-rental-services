@@ -121,10 +121,8 @@ class EmailServiceTest {
     }
 
     @Test
-    @DisplayName("Deve ser construído mesmo sem arquivo .env, como acontece no CI")
-    void shouldBuildWithoutDotenvFile() {
-        // Dotenv.configure().ignoreIfMissing() evita que a ausência do .env
-        // quebre o contexto. Chegar até aqui já prova a construção da classe.
+    @DisplayName("Deve funcionar sem remetente configurado")
+    void shouldWorkWithoutConfiguredSender() {
         assertThat(emailService).isNotNull();
         assertThatCode(() -> emailService.sendEmail(email)).doesNotThrowAnyException();
     }
