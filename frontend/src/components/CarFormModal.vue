@@ -1,0 +1,129 @@
+<script setup lang="ts">
+import { computed, reactive, ref, watch } from 'vue'
+import BaseModal from './BaseModal.vue'
+import { createCar, updateCar } from '@/api/cars'
+import { errorMessage } from '@/api/http'
+import type { Car, CarPayload, CarStatus } from '@/api/types'
+import { useToastStore } from '@/stores/toast'
+
+const props = defineProps<{ car: Car | null }>()
+const open = defineModel<boolean>('open', { required: true })
+const emit = defineEmits<{ saved: [car: Car] }>()
+
+const toast = useToastStore()
+const maxYear = new Date().getFullYear() + 1
+const platePattern = /^[A-Z]{3}-?\d[A-Z0-9]\d{2}$/
+
+const form = reactive<CarPayload>({
+  model: '',
+  color: '',
+  plate: '',
+  year: maxYear - 1,
+  status: 'AVAILABLE',
+})
+const saving = ref(false)
+const error = ref('')
+
+const isEdit = computed(() => props.car !== null)
+const isRented = computed(() => props.car?.status === 'RENTED')
+
+watch(open, (value) => {
+  if (!value) return
+  error.value = ''
+  Object.assign(form, {
+    model: props.car?.model ?? '',
+    color: props.car?.color ?? '',
+    plate: props.car?.plate ?? '',
+    year: props.car?.year ?? maxYear - 1,
+    status: props.car?.status ?? 'AVAILABLE',
+  })
+})
+
+function validate(): string {
+  if (!form.model.trim() || !form.color.trim()) return 'Preencha modelo e cor.'
+  if (!platePattern.test(form.plate)) return 'Placa inválida. Use ABC-1234 ou ABC1D23.'
+  if (form.year < 1950 || form.year > maxYear) return `Ano deve estar entre 1950 e ${maxYear}.`
+  return ''
+}
+
+async function submit() {
+  form.plate = form.plate.trim().toUpperCase()
+  error.value = validate()
+  if (error.value) return
+
+  const payload: CarPayload = {
+    ...form,
+    status: isRented.value ? undefined : (form.status as CarStatus),
+  }
+  saving.value = true
+  try {
+    const saved = props.car ? await updateCar(props.car.id, payload) : await createCar(payload)
+    toast.success(isEdit.value ? 'Carro atualizado.' : 'Carro cadastrado.')
+    emit('saved', saved)
+    open.value = false
+  } catch (e) {
+    error.value = errorMessage(e, 'Não foi possível salvar o carro.')
+  } finally {
+    saving.value = false
+  }
+}
+</script>
+
+<template>
+  <BaseModal v-model:open="open" :title="isEdit ? 'Editar carro' : 'Novo carro'">
+    <form id="car-form" class="grid grid-cols-2 gap-3" @submit.prevent="submit">
+      <label class="floating-label col-span-2">
+        <span>Modelo</span>
+        <input v-model="form.model" class="input w-full" placeholder="Modelo" required />
+      </label>
+      <label class="floating-label">
+        <span>Cor</span>
+        <input v-model="form.color" class="input w-full" placeholder="Cor" required />
+      </label>
+      <label class="floating-label">
+        <span>Ano</span>
+        <input
+          v-model.number="form.year"
+          type="number"
+          class="input w-full"
+          placeholder="Ano"
+          :min="1950"
+          :max="maxYear"
+          required
+        />
+      </label>
+      <label class="floating-label">
+        <span>Placa</span>
+        <input
+          v-model="form.plate"
+          class="input w-full uppercase"
+          placeholder="Placa"
+          maxlength="8"
+          required
+        />
+      </label>
+      <label class="floating-label">
+        <span>Status</span>
+        <select v-model="form.status" class="select w-full" :disabled="isRented">
+          <option value="AVAILABLE">Disponível</option>
+          <option value="MAINTENANCE">Manutenção</option>
+          <option v-if="isRented" value="RENTED">Alugado</option>
+        </select>
+      </label>
+      <p v-if="isRented" class="col-span-2 text-sm text-base-content/70">
+        Carro com locação ativa: o status só muda após a devolução.
+      </p>
+      <div v-if="error" role="alert" class="alert alert-error alert-soft col-span-2">
+        {{ error }}
+      </div>
+    </form>
+
+    <template #actions>
+      <button class="btn btn-ghost" :disabled="saving" @click="open = false">Cancelar</button>
+      <button type="submit" form="car-form" class="btn btn-primary" :disabled="saving">
+        <span v-if="saving" class="loading loading-spinner loading-sm"></span>
+        {{ isEdit ? 'Salvar alterações' : 'Cadastrar' }}
+      </button>
+    </template>
+  </BaseModal>
+</template>
