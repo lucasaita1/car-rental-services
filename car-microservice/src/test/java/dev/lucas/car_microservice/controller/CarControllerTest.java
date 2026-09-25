@@ -7,6 +7,7 @@ import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.security.TestJwt;
 import dev.lucas.car_microservice.security.TokenRevocationChecker;
 import dev.lucas.car_microservice.service.CarService;
+import dev.lucas.car_microservice.service.ReservationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,9 @@ class CarControllerTest {
 
     @MockitoBean
     private CarService carService;
+
+    @MockitoBean
+    private ReservationService reservationService;
 
     private CarModel car;
 
@@ -301,5 +305,16 @@ class CarControllerTest {
         mockMvc.perform(delete("/cars/1/photo").header("Authorization", TestJwt.admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.photoUrl").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Catálogo marca carros reservados no checkout de outro cliente")
+    void catalogFlagsReservedCars() throws Exception {
+        when(carService.findAll()).thenReturn(List.of(car));
+        when(reservationService.heldCarIds(List.of(1L))).thenReturn(java.util.Set.of(1L));
+
+        mockMvc.perform(get("/cars"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].reserved").value(true));
     }
 }

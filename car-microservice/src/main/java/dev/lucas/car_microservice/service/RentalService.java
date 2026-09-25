@@ -1,6 +1,7 @@
 package dev.lucas.car_microservice.service;
 
 
+import dev.lucas.car_microservice.dto.HoldResponse;
 import dev.lucas.car_microservice.dto.RentalEmailDto;
 import dev.lucas.car_microservice.dto.RentalResponseDto;
 import dev.lucas.car_microservice.entity.CarModel;
@@ -12,8 +13,10 @@ import dev.lucas.car_microservice.repository.CarRepository;
 import dev.lucas.car_microservice.repository.RentalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -35,6 +38,7 @@ public class RentalService {
     private final CarRepository carRepository;
     private final RentalRepository rentalRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ReservationService reservationService;
 
     @Transactional
     public String rentCar(Long carId, Long userId) {
@@ -62,10 +66,15 @@ public class RentalService {
             return "A data prevista de devolução não pode ser anterior a hoje.";
         }
 
+        if (reservationService.hold(carId, userId).isPresent()) {
+            return "Este carro está reservado por outro cliente no momento.";
+        }
+
         String userKey = "user:" + userId;
         Object userCache = redisTemplate.opsForValue().get(userKey);
 
         if (userCache == null) {
+            reservationService.release(carId, userId);
             return "Usuário não encontrado no cache. É necessário fazer login novamente.";
         }
 
@@ -91,6 +100,7 @@ public class RentalService {
         car.setStatus(CarStatus.RENTED);
         car.setUserId(userId);
         carRepository.save(car);
+        reservationService.release(carId, userId);
 
         RentalEmailDto emailRentalDto = new RentalEmailDto();
         emailRentalDto.setUserName(rental.getUserName());
@@ -136,6 +146,27 @@ public class RentalService {
         carRepository.save(car);
 
         return "Carro devolvido e status atualizado para disponível.";
+    }
+
+    public HoldResponse holdCar(Long carId, Long userId) {
+        CarModel car = carRepository.findById(carId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carro não encontrado."));
+
+        if (car.getStatus() == CarStatus.MAINTENANCE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este carro está em manutenção.");
+        }
+        if (rentalRepository.existsByCarIdAndStatus(carId, RentalStatus.ACTIVE)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este carro já está alugado.");
+        }
+        if (reservationService.hold(carId, userId).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Outro cliente está finalizando a locação deste carro. Tente novamente em alguns minutos.");
+        }
+        return new HoldResponse(carId, reservationService.expiresAt(carId));
+    }
+
+    public void releaseHold(Long carId, Long userId) {
+        reservationService.release(carId, userId);
     }
 
     public Optional<Long> findActiveRenterId(Long carId) {

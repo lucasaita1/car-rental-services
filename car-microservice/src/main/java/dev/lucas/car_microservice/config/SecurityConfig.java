@@ -47,7 +47,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/cars/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/cars/*", "/cars/*/photo").hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.POST, "/rental/rent/**", "/rental/return/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/rental/rent/**", "/rental/return/*", "/rental/hold/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/rental/hold/*").authenticated()
                         .requestMatchers(HttpMethod.GET, "/rental/user/*").authenticated()
                         .requestMatchers(HttpMethod.GET, "/rental/active", "/rental/overdue", "/rental/car/*").hasRole("ADMIN")
 

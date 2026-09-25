@@ -1,6 +1,7 @@
 package dev.lucas.car_microservice.controller;
 
 import dev.lucas.car_microservice.config.SecurityConfig;
+import dev.lucas.car_microservice.dto.HoldResponse;
 import dev.lucas.car_microservice.dto.RentalResponseDto;
 import dev.lucas.car_microservice.enums.RentalStatus;
 import dev.lucas.car_microservice.security.TestJwt;
@@ -24,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -191,5 +193,41 @@ class RentalControllerTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/rental/car/1").header("Authorization", TestJwt.admin()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Reservar exige login")
+    void holdRequiresLogin() throws Exception {
+        mockMvc.perform(post("/rental/hold/1")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Reserva é feita em nome do usuário do token")
+    void holdUsesTokenUser() throws Exception {
+        when(rentalService.holdCar(1L, 5L)).thenReturn(new HoldResponse(1L, java.time.Instant.parse("2026-09-25T20:10:00Z")));
+
+        mockMvc.perform(post("/rental/hold/1").header("Authorization", TestJwt.user(5L)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.carId").value(1))
+                .andExpect(jsonPath("$.expiresAt").exists());
+    }
+
+    @Test
+    @DisplayName("Carro reservado por outro retorna 409")
+    void holdConflict() throws Exception {
+        when(rentalService.holdCar(1L, 5L)).thenThrow(new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.CONFLICT, "Outro cliente está finalizando a locação deste carro."));
+
+        mockMvc.perform(post("/rental/hold/1").header("Authorization", TestJwt.user(5L)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Cancelar a reserva solta o carro do próprio usuário")
+    void releaseHold() throws Exception {
+        mockMvc.perform(delete("/rental/hold/1").header("Authorization", TestJwt.user(5L)))
+                .andExpect(status().isNoContent());
+
+        verify(rentalService).releaseHold(1L, 5L);
     }
 }

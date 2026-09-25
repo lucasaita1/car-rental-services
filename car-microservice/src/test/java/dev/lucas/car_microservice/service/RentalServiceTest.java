@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -46,6 +47,9 @@ class RentalServiceTest {
 
     @Mock
     private ValueOperations<String, Object> valueOperations;
+
+    @Mock
+    private ReservationService reservationService;
 
     @InjectMocks
     private RentalService rentalService;
@@ -456,5 +460,84 @@ class RentalServiceTest {
         List<RentalResponseDto> ativas = rentalService.findActiveRentals();
 
         assertThat(ativas.get(0).isOverdue()).isFalse();
+    }
+
+    // ------------------------------------------------------------------
+    // Reserva durante o checkout
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Não aluga carro reservado por outro cliente")
+    void shouldNotRentCarHeldBySomeoneElse() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(reservationService.hold(1L, 42L)).thenReturn(Optional.of(9L));
+
+        String result = rentalService.rentCar(1L, 42L);
+
+        assertThat(result).contains("reservado por outro cliente");
+        verify(rentalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Aluguel concluído solta a reserva")
+    void shouldReleaseHoldAfterRent() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+
+        rentalService.rentCar(1L, 42L);
+
+        verify(reservationService).release(1L, 42L);
+    }
+
+    @Test
+    @DisplayName("Sem sessão no cache a reserva é solta para não travar o carro")
+    void shouldReleaseHoldWhenUserNotCached() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(null);
+
+        rentalService.rentCar(1L, 42L);
+
+        verify(reservationService).release(1L, 42L);
+    }
+
+    @Test
+    @DisplayName("Reserva de carro livre devolve o prazo")
+    void shouldHoldAvailableCar() {
+        java.time.Instant prazo = java.time.Instant.now().plusSeconds(600);
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(reservationService.expiresAt(1L)).thenReturn(prazo);
+
+        assertThat(rentalService.holdCar(1L, 42L).expiresAt()).isEqualTo(prazo);
+    }
+
+    @Test
+    @DisplayName("Reserva recusa carro em manutenção, alugado ou reservado por outro")
+    void shouldRefuseUnavailableHolds() {
+        availableCar.setStatus(CarStatus.MAINTENANCE);
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        assertThatThrownBy(() -> rentalService.holdCar(1L, 42L)).isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("manutenção");
+
+        availableCar.setStatus(CarStatus.AVAILABLE);
+        when(rentalRepository.existsByCarIdAndStatus(1L, RentalStatus.ACTIVE)).thenReturn(true);
+        assertThatThrownBy(() -> rentalService.holdCar(1L, 42L)).isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("alugado");
+
+        when(rentalRepository.existsByCarIdAndStatus(1L, RentalStatus.ACTIVE)).thenReturn(false);
+        when(reservationService.hold(1L, 42L)).thenReturn(Optional.of(9L));
+        assertThatThrownBy(() -> rentalService.holdCar(1L, 42L)).isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Outro cliente");
+    }
+
+    @Test
+    @DisplayName("Reserva de carro inexistente retorna 404")
+    void shouldReturnNotFoundOnHoldOfMissingCar() {
+        when(carRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> rentalService.holdCar(99L, 42L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("404");
     }
 }

@@ -23,4 +23,5 @@ public class CarResponseDto {
     private Long userId;
     private CarStatus status;
     private String photoUrl;
+    private boolean reserved;
 }
