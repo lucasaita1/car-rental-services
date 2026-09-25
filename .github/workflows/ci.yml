@@ -78,3 +78,32 @@ jobs:
 
       - name: Rodar Checkstyle
         run: mvn -B checkstyle:check -Dcheckstyle.violationSeverity=warning -Dcheckstyle.failOnViolation=false
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Testes
+        run: npm run test:unit -- --run
+
+      - name: Build
+        run: npm run build-only
