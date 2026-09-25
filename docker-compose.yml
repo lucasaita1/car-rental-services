@@ -45,6 +45,7 @@ services:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-user:3306/rental_db
       - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/email_db
+      - CAR_SERVICE_URL=http://car-service:8082
 
   car-service:
     build: ./car-microservice
