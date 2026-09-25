@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import CarCard from '@/components/CarCard.vue'
 import RentModal from '@/components/RentModal.vue'
 import { listCars } from '@/api/cars'
+import { holdCar } from '@/api/rentals'
 import { errorMessage } from '@/api/http'
 import type { Car, CarStatus } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
@@ -21,6 +22,9 @@ const statusFilter = ref<CarStatus | ''>('')
 
 const rentOpen = ref(false)
 const selected = ref<Car | null>(null)
+const expiresAt = ref<string | null>(null)
+const heldCarId = ref<number | null>(null)
+const holding = ref<number | null>(null)
 
 const filtered = computed(() => {
   const term = search.value.trim().toLowerCase()
@@ -43,14 +47,30 @@ async function load() {
   }
 }
 
-function openRent(car: Car) {
+async function openRent(car: Car) {
   if (!auth.isAuthenticated) {
     toast.info('Entre na sua conta para alugar um carro.')
     router.push({ name: 'login', query: { redirect: '/' } })
     return
   }
-  selected.value = car
-  rentOpen.value = true
+  holding.value = car.id
+  try {
+    const hold = await holdCar(car.id)
+    selected.value = car
+    expiresAt.value = hold.expiresAt
+    heldCarId.value = car.id
+    rentOpen.value = true
+  } catch (e) {
+    toast.warning(errorMessage(e, 'Não foi possível reservar este carro.'))
+    await load()
+  } finally {
+    holding.value = null
+  }
+}
+
+function onCheckoutClosed() {
+  heldCarId.value = null
+  load()
 }
 
 onMounted(load)
@@ -88,9 +108,22 @@ onMounted(load)
     </div>
 
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <CarCard v-for="car in filtered" :key="car.id" :car="car" @rent="openRent" />
+      <CarCard
+        v-for="car in filtered"
+        :key="car.id"
+        :car="car"
+        :held-by-me="car.id === heldCarId"
+        :class="{ 'pointer-events-none opacity-60': holding === car.id }"
+        @rent="openRent"
+      />
     </div>
 
-    <RentModal v-model:open="rentOpen" :car="selected" @rented="load" />
+    <RentModal
+      v-model:open="rentOpen"
+      :car="selected"
+      :expires-at="expiresAt"
+      @rented="onCheckoutClosed"
+      @released="onCheckoutClosed"
+    />
   </section>
 </template>

@@ -1,5 +1,5 @@
 import { carApi } from './http'
-import type { Rental } from './types'
+import type { HoldResponse, Rental } from './types'
 
 export async function rentCar(
   carId: number,
@@ -30,4 +30,13 @@ export async function activeRentals(): Promise<Rental[]> {
 export async function overdueRentals(): Promise<Rental[]> {
   const { data } = await carApi.get<Rental[]>('/rental/overdue')
   return data
+}
+
+export async function holdCar(carId: number): Promise<HoldResponse> {
+  const { data } = await carApi.post<HoldResponse>(`/rental/hold/${carId}`)
+  return data
+}
+
+export async function releaseHold(carId: number): Promise<void> {
+  await carApi.delete(`/rental/hold/${carId}`)
 }
