@@ -16,7 +16,7 @@ const loading = ref(false)
 const error = ref('')
 
 function validate(): string {
-  if (form.password.length < 6) return 'A senha precisa ter pelo menos 6 caracteres.'
+  if (form.password.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.'
   if (form.password !== confirmPassword.value) return 'As senhas não conferem.'
   if (!/^\d{11}$/.test(form.cpf)) return 'CPF deve ter 11 dígitos, sem pontuação.'
   if (!/^\d{11}$/.test(form.cnh)) return 'CNH deve ter 11 dígitos.'
