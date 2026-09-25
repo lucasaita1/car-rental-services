@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { TOKEN_KEY } from '@/api/http'
+import * as authApi from '@/api/auth'
 
 function fakeToken(payload: Record<string, unknown>): string {
   const encode = (obj: object) => btoa(JSON.stringify(obj)).replace(/=+$/, '')
@@ -55,12 +56,12 @@ describe('auth store', () => {
     expect(auth.isAuthenticated).toBe(false)
   })
 
-  it('persiste o token e o remove no logout', () => {
+  it('persiste o token e o remove ao encerrar a sessão', () => {
     const auth = useAuthStore()
     auth.setToken(fakeToken({ id: 1, role: 'USER', exp: inOneHour() }))
     expect(localStorage.getItem(TOKEN_KEY)).not.toBeNull()
 
-    auth.logout()
+    auth.clearSession()
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
     expect(auth.isAuthenticated).toBe(false)
   })
@@ -70,5 +71,27 @@ describe('auth store', () => {
     setActivePinia(createPinia())
 
     expect(useAuthStore().userId).toBe(9)
+  })
+
+  it('logout revoga o token no servidor e limpa a sessão', async () => {
+    const spy = vi.spyOn(authApi, 'logout').mockResolvedValue()
+    const auth = useAuthStore()
+    auth.setToken(fakeToken({ id: 1, role: 'USER', exp: inOneHour() }))
+
+    await auth.logout()
+
+    expect(spy).toHaveBeenCalledOnce()
+    expect(auth.isAuthenticated).toBe(false)
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('logout limpa a sessão mesmo se o servidor falhar', async () => {
+    vi.spyOn(authApi, 'logout').mockRejectedValue(new Error('offline'))
+    const auth = useAuthStore()
+    auth.setToken(fakeToken({ id: 1, role: 'USER', exp: inOneHour() }))
+
+    await auth.logout()
+
+    expect(auth.isAuthenticated).toBe(false)
   })
 })

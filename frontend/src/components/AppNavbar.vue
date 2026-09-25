@@ -7,8 +7,8 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const router = useRouter()
 
-function logout() {
-  auth.logout()
+async function logout() {
+  await auth.logout()
   toast.info('Você saiu da sua conta.')
   router.push({ name: 'catalog' })
 }

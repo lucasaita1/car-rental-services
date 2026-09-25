@@ -42,7 +42,18 @@ export const useAuthStore = defineStore('auth', () => {
     await login(data.email, data.password)
   }
 
-  function logout() {
+  async function logout() {
+    if (isAuthenticated.value) {
+      try {
+        await authApi.logout()
+      } catch {
+        // a sessão local é encerrada mesmo se o servidor não responder
+      }
+    }
+    setToken(null)
+  }
+
+  function clearSession() {
     setToken(null)
   }
 
@@ -56,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     logout,
+    clearSession,
     setToken,
   }
 })

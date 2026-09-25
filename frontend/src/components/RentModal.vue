@@ -35,7 +35,7 @@ async function confirm() {
       emit('rented')
       open.value = false
     } else if (message.includes('login novamente')) {
-      auth.logout()
+      await auth.logout()
       toast.warning('Sua sessão de aluguel expirou. Entre novamente.')
       router.push({ name: 'login', query: { redirect: '/' } })
     } else {

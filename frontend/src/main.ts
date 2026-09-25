@@ -15,7 +15,7 @@ app.use(createPinia())
 app.use(router)
 
 installSessionExpiryHandler(router, () => {
-  useAuthStore().logout()
+  useAuthStore().clearSession()
   useToastStore().warning('Sua sessão expirou. Entre novamente.')
 })
 
