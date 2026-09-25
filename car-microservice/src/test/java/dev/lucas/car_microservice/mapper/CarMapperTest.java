@@ -114,7 +114,7 @@ class CarMapperTest {
         void shouldMapEveryEntityField() {
             CarModel entity = new CarModel(
                     7L, "Civic", "Preto", "ABC-1D23", 2024,
-                    ALUGUEL, DEVOLUCAO, CarStatus.RENTED, 42L
+                    ALUGUEL, DEVOLUCAO, CarStatus.RENTED, 42L, null
             );
 
             CarResponseDto dto = CarMapper.toResponseDto(entity);

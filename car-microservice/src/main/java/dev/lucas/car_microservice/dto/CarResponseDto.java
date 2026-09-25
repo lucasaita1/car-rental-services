@@ -22,4 +22,5 @@ public class CarResponseDto {
     private LocalDate returnDate;
     private Long userId;
     private CarStatus status;
+    private String photoUrl;
 }

@@ -6,11 +6,13 @@ import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.enums.RentalStatus;
 import dev.lucas.car_microservice.repository.CarRepository;
 import dev.lucas.car_microservice.repository.RentalRepository;
+import dev.lucas.car_microservice.storage.FileStorageService;
 import dev.lucas.car_microservice.util.InputSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -21,6 +23,7 @@ public class CarService {
 
     private final CarRepository carRepository;
     private final RentalRepository rentalRepository;
+    private final FileStorageService storage;
 
     public CarModel save(CarModel carModel){
         return carRepository.save(carModel);
@@ -32,8 +35,7 @@ public class CarService {
 
     @Transactional
     public CarModel update(Long id, CarRequestDto dto) {
-        CarModel car = carRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carro não encontrado."));
+        CarModel car = findExisting(id);
 
         if (dto.getStatus() == CarStatus.RENTED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -65,6 +67,31 @@ public class CarService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Carro com locação ativa não pode ser removido.");
         }
+        carRepository.findById(id).ifPresent(car -> storage.delete(car.getPhotoPath()));
         carRepository.deleteById(id);
+    }
+
+    @Transactional
+    public CarModel updatePhoto(Long id, MultipartFile file) {
+        CarModel car = findExisting(id);
+        String newPath = storage.storeImage(file, "cars");
+        String oldPath = car.getPhotoPath();
+        car.setPhotoPath(newPath);
+        CarModel saved = carRepository.save(car);
+        storage.delete(oldPath);
+        return saved;
+    }
+
+    @Transactional
+    public CarModel removePhoto(Long id) {
+        CarModel car = findExisting(id);
+        storage.delete(car.getPhotoPath());
+        car.setPhotoPath(null);
+        return carRepository.save(car);
+    }
+
+    private CarModel findExisting(Long id) {
+        return carRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carro não encontrado."));
     }
 }

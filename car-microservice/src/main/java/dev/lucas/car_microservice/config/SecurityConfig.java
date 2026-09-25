@@ -42,10 +42,10 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        .requestMatchers(HttpMethod.GET, "/cars", "/cars/*").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/cars").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/cars", "/cars/*", "/files/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/cars", "/cars/*/photo").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/cars/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/cars/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/cars/*", "/cars/*/photo").hasRole("ADMIN")
 
                         .requestMatchers(HttpMethod.POST, "/rental/rent/**", "/rental/return/*").authenticated()
                         .requestMatchers(HttpMethod.GET, "/rental/user/*").authenticated()

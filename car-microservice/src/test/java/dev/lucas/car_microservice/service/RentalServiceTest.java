@@ -78,7 +78,7 @@ class RentalServiceTest {
                 null,
                 null,
                 CarStatus.AVAILABLE,
-                null
+                null, null
         );
     }
 

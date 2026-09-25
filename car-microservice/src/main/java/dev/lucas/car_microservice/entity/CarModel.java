@@ -28,5 +28,6 @@ public class CarModel {
     private LocalDate returnDate;
     private CarStatus status;
     private Long userId;
+    private String photoPath;
 
 }

@@ -4,6 +4,7 @@ import dev.lucas.car_microservice.dto.CarRequestDto;
 import dev.lucas.car_microservice.dto.CarResponseDto;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.enums.CarStatus;
+import dev.lucas.car_microservice.storage.FileStorageService;
 import dev.lucas.car_microservice.util.InputSanitizer;
 
 public class CarMapper {
@@ -32,6 +33,7 @@ public class CarMapper {
         dto.setReturnDate(car.getReturnDate());
         dto.setUserId(car.getUserId());
         dto.setStatus(car.getStatus());
+        dto.setPhotoUrl(FileStorageService.publicUrl(car.getPhotoPath()));
         return dto;
     }
 

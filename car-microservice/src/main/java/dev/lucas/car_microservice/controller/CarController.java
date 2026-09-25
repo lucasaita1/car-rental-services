@@ -7,8 +7,10 @@ import dev.lucas.car_microservice.mapper.CarMapper;
 import dev.lucas.car_microservice.service.CarService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -48,6 +50,16 @@ public class CarController {
     public ResponseEntity<CarResponseDto> updateCar(@PathVariable Long id, @Valid @RequestBody CarRequestDto carRequestDto) {
         CarModel updated = carService.update(id, carRequestDto);
         return ResponseEntity.ok(CarMapper.toResponseDto(updated));
+    }
+
+    @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CarResponseDto> uploadPhoto(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(CarMapper.toResponseDto(carService.updatePhoto(id, file)));
+    }
+
+    @DeleteMapping("/{id}/photo")
+    public ResponseEntity<CarResponseDto> removePhoto(@PathVariable Long id) {
+        return ResponseEntity.ok(CarMapper.toResponseDto(carService.removePhoto(id)));
     }
 
     @DeleteMapping("/{id}")

@@ -6,6 +6,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,5 +23,11 @@ public class ApiExceptionHandler {
         String message = errors.values().stream().findFirst().orElse("Dados inválidos.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("status", 400, "message", message, "errors", errors));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleTooLarge(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(Map.of("status", 413, "message", "A imagem deve ter no máximo 5 MB."));
     }
 }

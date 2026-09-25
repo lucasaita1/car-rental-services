@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -66,7 +68,7 @@ class CarControllerTest {
                 null,
                 null,
                 CarStatus.AVAILABLE,
-                null
+                null, null
         );
     }
 
@@ -265,5 +267,39 @@ class CarControllerTest {
                 .andExpect(jsonPath("$.errors.year").exists());
 
         verify(carService, never()).update(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("ADMIN envia foto do carro e recebe a URL pública")
+    void adminUploadsCarPhoto() throws Exception {
+        car.setPhotoPath("cars/abc.jpg");
+        when(carService.updatePhoto(eq(1L), any())).thenReturn(car);
+
+        mockMvc.perform(multipart("/cars/1/photo")
+                        .file(new MockMultipartFile("file", "civic.jpg", "image/jpeg", new byte[]{1, 2, 3}))
+                        .header("Authorization", TestJwt.admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.photoUrl").value("/files/cars/abc.jpg"));
+    }
+
+    @Test
+    @DisplayName("USER não envia foto de carro")
+    void userCannotUploadCarPhoto() throws Exception {
+        mockMvc.perform(multipart("/cars/1/photo")
+                        .file(new MockMultipartFile("file", "civic.jpg", "image/jpeg", new byte[]{1}))
+                        .header("Authorization", TestJwt.user(5L)))
+                .andExpect(status().isForbidden());
+
+        verify(carService, never()).updatePhoto(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("ADMIN remove a foto do carro")
+    void adminRemovesCarPhoto() throws Exception {
+        when(carService.removePhoto(1L)).thenReturn(car);
+
+        mockMvc.perform(delete("/cars/1/photo").header("Authorization", TestJwt.admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.photoUrl").doesNotExist());
     }
 }

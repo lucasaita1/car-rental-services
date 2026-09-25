@@ -45,3 +45,7 @@ tfplan
 *.tfplan
 .terraformrc
 terraform.rc
+
+### Uploads locais ###
+/storage/
+/*/storage/

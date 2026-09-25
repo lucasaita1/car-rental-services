@@ -6,6 +6,7 @@ import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.enums.RentalStatus;
 import dev.lucas.car_microservice.repository.CarRepository;
 import dev.lucas.car_microservice.repository.RentalRepository;
+import dev.lucas.car_microservice.storage.FileStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -36,6 +38,9 @@ class CarServiceTest {
     @Mock
     private RentalRepository rentalRepository;
 
+    @Mock
+    private FileStorageService storage;
+
     @InjectMocks
     private CarService carService;
 
@@ -52,7 +57,7 @@ class CarServiceTest {
                 null,
                 null,
                 CarStatus.AVAILABLE,
-                null
+                null, null
         );
     }
 
@@ -96,7 +101,7 @@ class CarServiceTest {
     void shouldFindAll() {
         CarModel outro = new CarModel(
                 2L, "Onix", "Branco", "XYZ-9Z99", 2022,
-                LocalDate.now(), null, CarStatus.RENTED, null
+                LocalDate.now(), null, CarStatus.RENTED, null, null
         );
         when(carRepository.findAll()).thenReturn(List.of(car, outro));
 
@@ -202,5 +207,43 @@ class CarServiceTest {
         assertThatThrownBy(() -> carService.update(99L, CarRequestDto.builder().model("X").build()))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("404");
+    }
+
+    @Test
+    @DisplayName("Nova foto substitui a anterior e apaga o arquivo antigo")
+    void shouldReplacePhoto() {
+        car.setPhotoPath("cars/antiga.jpg");
+        MockMultipartFile file = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[]{1});
+        when(carRepository.findById(1L)).thenReturn(Optional.of(car));
+        when(storage.storeImage(file, "cars")).thenReturn("cars/nova.jpg");
+        when(carRepository.save(any(CarModel.class))).thenAnswer(i -> i.getArgument(0));
+
+        CarModel atualizado = carService.updatePhoto(1L, file);
+
+        assertThat(atualizado.getPhotoPath()).isEqualTo("cars/nova.jpg");
+        verify(storage).delete("cars/antiga.jpg");
+    }
+
+    @Test
+    @DisplayName("Remover foto apaga o arquivo e limpa o campo")
+    void shouldRemovePhoto() {
+        car.setPhotoPath("cars/antiga.jpg");
+        when(carRepository.findById(1L)).thenReturn(Optional.of(car));
+        when(carRepository.save(any(CarModel.class))).thenAnswer(i -> i.getArgument(0));
+
+        assertThat(carService.removePhoto(1L).getPhotoPath()).isNull();
+        verify(storage).delete("cars/antiga.jpg");
+    }
+
+    @Test
+    @DisplayName("Remover o carro apaga a foto do storage")
+    void shouldDeletePhotoWithCar() {
+        car.setPhotoPath("cars/foto.jpg");
+        when(carRepository.findById(1L)).thenReturn(Optional.of(car));
+
+        carService.deleteById(1L);
+
+        verify(storage).delete("cars/foto.jpg");
+        verify(carRepository).deleteById(1L);
     }
 }
