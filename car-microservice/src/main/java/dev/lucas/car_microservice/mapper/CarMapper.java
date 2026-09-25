@@ -3,6 +3,7 @@ package dev.lucas.car_microservice.mapper;
 import dev.lucas.car_microservice.dto.CarRequestDto;
 import dev.lucas.car_microservice.dto.CarResponseDto;
 import dev.lucas.car_microservice.entity.CarModel;
+import dev.lucas.car_microservice.enums.CarStatus;
 
 public class CarMapper {
 
@@ -15,6 +16,7 @@ public class CarMapper {
         car.setRentalDate(dto.getRentalDate());
         car.setReturnDate(dto.getReturnDate());
         car.setUserId(dto.getUserId());
+        car.setStatus(dto.getStatus() != null ? dto.getStatus() : CarStatus.AVAILABLE);
         return car;
     }
 
@@ -28,6 +30,7 @@ public class CarMapper {
         dto.setRentalDate(car.getRentalDate());
         dto.setReturnDate(car.getReturnDate());
         dto.setUserId(car.getUserId());
+        dto.setStatus(car.getStatus());
         return dto;
     }
 

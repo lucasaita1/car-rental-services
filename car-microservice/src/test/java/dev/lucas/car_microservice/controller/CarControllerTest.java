@@ -1,32 +1,47 @@
 package dev.lucas.car_microservice.controller;
 
+import dev.lucas.car_microservice.config.SecurityConfig;
+import dev.lucas.car_microservice.dto.CarRequestDto;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.enums.CarStatus;
+import dev.lucas.car_microservice.security.TestJwt;
 import dev.lucas.car_microservice.service.CarService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CarController.class)
+@Import({SecurityConfig.class, TestJwt.Config.class})
 class CarControllerTest {
+
+    private static final String CAR_JSON =
+            "{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"ABC-1D23\",\"year\":2024}";
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,12 +72,14 @@ class CarControllerTest {
         when(carService.save(any(CarModel.class))).thenReturn(car);
 
         mockMvc.perform(post("/cars")
+                        .header("Authorization", TestJwt.admin())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"ABC-1D23\",\"year\":2024}"))
+                        .content(CAR_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.model").value("Civic"))
-                .andExpect(jsonPath("$.plate").value("ABC-1D23"));
+                .andExpect(jsonPath("$.plate").value("ABC-1D23"))
+                .andExpect(jsonPath("$.status").value("AVAILABLE"));
     }
 
     @Test
@@ -90,9 +107,118 @@ class CarControllerTest {
     @Test
     @DisplayName("Deve remover um carro via DELETE /cars/{id}")
     void shouldDeleteCar() throws Exception {
-        mockMvc.perform(delete("/cars/1"))
+        mockMvc.perform(delete("/cars/1").header("Authorization", TestJwt.admin()))
                 .andExpect(status().isNoContent());
 
         verify(carService, times(1)).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("Deve editar um carro via PUT /cars/{id}")
+    void shouldUpdateCar() throws Exception {
+        car.setColor("Branco");
+        when(carService.update(eq(1L), any(CarRequestDto.class))).thenReturn(car);
+
+        mockMvc.perform(put("/cars/1")
+                        .header("Authorization", TestJwt.admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"model\":\"Civic\",\"color\":\"Branco\",\"plate\":\"ABC-1D23\",\"year\":2024}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.color").value("Branco"));
+    }
+
+    @Test
+    @DisplayName("Catálogo é público mesmo com token inválido")
+    void catalogIsPublicEvenWithGarbageToken() throws Exception {
+        when(carService.findAll()).thenReturn(List.of(car));
+
+        mockMvc.perform(get("/cars").header("Authorization", "Bearer lixo"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Criar carro sem token retorna 401")
+    void createWithoutTokenIsUnauthorized() throws Exception {
+        mockMvc.perform(post("/cars").contentType(MediaType.APPLICATION_JSON).content(CAR_JSON))
+                .andExpect(status().isUnauthorized());
+
+        verify(carService, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Criar carro como USER retorna 403")
+    void createAsUserIsForbidden() throws Exception {
+        mockMvc.perform(post("/cars")
+                        .header("Authorization", TestJwt.user(5L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAR_JSON))
+                .andExpect(status().isForbidden());
+
+        verify(carService, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Editar carro como USER retorna 403")
+    void updateAsUserIsForbidden() throws Exception {
+        mockMvc.perform(put("/cars/1")
+                        .header("Authorization", TestJwt.user(5L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAR_JSON))
+                .andExpect(status().isForbidden());
+
+        verify(carService, never()).update(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("Remover carro como USER retorna 403")
+    void deleteAsUserIsForbidden() throws Exception {
+        mockMvc.perform(delete("/cars/1").header("Authorization", TestJwt.user(5L)))
+                .andExpect(status().isForbidden());
+
+        verify(carService, never()).deleteById(anyLong());
+    }
+
+    @Test
+    @DisplayName("Token de admin vencido retorna 401")
+    void expiredAdminTokenIsUnauthorized() throws Exception {
+        String vencido = "Bearer " + TestJwt.token(1L, "ADMIN", Instant.now().minusSeconds(60), TestJwt.SECRET);
+
+        mockMvc.perform(post("/cars")
+                        .header("Authorization", vencido)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAR_JSON))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Token de admin forjado com outro segredo retorna 401")
+    void forgedAdminTokenIsUnauthorized() throws Exception {
+        String forjado = "Bearer " + TestJwt.token(1L, "ADMIN", Instant.now().plusSeconds(3600), "outro-segredo");
+
+        mockMvc.perform(post("/cars")
+                        .header("Authorization", forjado)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAR_JSON))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Preflight CORS do front-end é liberado")
+    void corsPreflightFromFrontendIsAllowed() throws Exception {
+        mockMvc.perform(options("/cars")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "Authorization,Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+    }
+
+    @Test
+    @DisplayName("Preflight de origem desconhecida é recusado")
+    void corsPreflightFromUnknownOriginIsRejected() throws Exception {
+        mockMvc.perform(options("/cars")
+                        .header("Origin", "http://site-malicioso.com")
+                        .header("Access-Control-Request-Method", "POST"))
+                .andExpect(status().isForbidden());
     }
 }

@@ -138,6 +138,11 @@ public class RentalService {
         return "Carro devolvido e status atualizado para disponível.";
     }
 
+    public Optional<Long> findActiveRenterId(Long carId) {
+        return rentalRepository.findByCarIdAndStatus(carId, RentalStatus.ACTIVE)
+                .map(RentalModel::getUserId);
+    }
+
     /** Histórico completo de locações de um cliente. */
     public List<RentalResponseDto> findRentalsByUser(Long userId) {
         return toDtoList(rentalRepository.findByUserIdOrderByRentalDateDesc(userId));

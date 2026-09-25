@@ -1,6 +1,7 @@
 package dev.lucas.car_microservice.dto;
 
 
+import dev.lucas.car_microservice.enums.CarStatus;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -20,4 +21,5 @@ public class CarResponseDto {
     private LocalDate rentalDate;
     private LocalDate returnDate;
     private Long userId;
+    private CarStatus status;
 }

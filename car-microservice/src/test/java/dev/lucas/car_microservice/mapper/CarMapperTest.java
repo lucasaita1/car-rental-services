@@ -59,13 +59,20 @@ class CarMapperTest {
         }
 
         @Test
-        @DisplayName("Deve deixar o status nulo, pois o cadastro não define disponibilidade")
-        void shouldLeaveStatusNull() {
+        @DisplayName("Carro cadastrado sem status deve nascer disponível")
+        void shouldDefaultStatusToAvailable() {
             CarModel entity = CarMapper.toEntity(CarRequestDto.builder().model("Civic").build());
 
-            // Comportamento atual: quem define o status é o fluxo de aluguel/devolução.
-            // Um carro recém-cadastrado nasce sem status, e não como AVAILABLE.
-            assertThat(entity.getStatus()).isNull();
+            assertThat(entity.getStatus()).isEqualTo(CarStatus.AVAILABLE);
+        }
+
+        @Test
+        @DisplayName("Deve respeitar o status informado no cadastro")
+        void shouldKeepProvidedStatus() {
+            CarModel entity = CarMapper.toEntity(CarRequestDto.builder()
+                    .model("Civic").status(CarStatus.MAINTENANCE).build());
+
+            assertThat(entity.getStatus()).isEqualTo(CarStatus.MAINTENANCE);
         }
 
         @Test
@@ -109,6 +116,7 @@ class CarMapperTest {
             assertThat(dto.getRentalDate()).isEqualTo(ALUGUEL);
             assertThat(dto.getReturnDate()).isEqualTo(DEVOLUCAO);
             assertThat(dto.getUserId()).isEqualTo(42L);
+            assertThat(dto.getStatus()).isEqualTo(CarStatus.RENTED);
         }
 
         @Test
