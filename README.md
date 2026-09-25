@@ -14,6 +14,11 @@
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
+![Vue](https://img.shields.io/badge/Vue-3.5-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![daisyUI](https://img.shields.io/badge/daisyUI-5-5A0EF8?style=for-the-badge&logo=daisyui&logoColor=white)
+
 </div>
 
 ---
@@ -145,6 +150,45 @@ Consumidor puro, sem API HTTP exposta. Escuta a fila e registra tudo que passa p
 
 ---
 
+### 4. Front-end
+
+SPA em `frontend/`, consumindo os dois serviços pelo navegador.
+
+**Stack:** Vue 3.5, TypeScript, Vite, Vue Router, Pinia, Tailwind CSS 4, daisyUI 5, axios e jwt-decode. Testes com Vitest; ESLint, Oxlint e Prettier.
+
+| Rota | Acesso | Tela |
+|---|---|---|
+| `/` | público | Catálogo com busca e filtro por status |
+| `/login`, `/cadastro` | só deslogado | Entrar e criar conta |
+| `/minhas-locacoes` | logado | Histórico e devolução das próprias locações |
+| `/admin/frota` | ADMIN | Cadastro, edição e remoção de carros (modais) |
+| `/admin/locacoes` | ADMIN | Locações em andamento e atrasadas |
+| `/admin/usuarios` | ADMIN | Promover ou remover administradores |
+
+O papel do usuário vem do próprio JWT. Os guards do router escondem as telas, mas quem garante a regra é o backend: forçar uma URL ou uma requisição sem permissão resulta em 401 ou 403.
+
+---
+
+## Perfis e Permissões
+
+Há dois papéis: `USER` (cliente) e `ADMIN`. Todo cadastro público nasce `USER`; um `role` enviado no corpo do cadastro é ignorado. Só um ADMIN promove outro usuário.
+
+| Rota | Anônimo | USER | ADMIN |
+|---|:---:|:---:|:---:|
+| `GET /cars`, `GET /cars/{id}` | ✓ | ✓ | ✓ |
+| `POST /cars`, `PUT /cars/{id}`, `DELETE /cars/{id}` | 401 | 403 | ✓ |
+| `POST /rental/rent/{carId}/user/{userId}` | 401 | só o próprio `userId` | ✓ |
+| `POST /rental/return/{carId}` | 401 | só locação própria | ✓ |
+| `GET /rental/user/{userId}` | 401 | só o próprio | ✓ |
+| `GET /rental/active`, `/overdue`, `/car/{id}` | 401 | 403 | ✓ |
+| `POST /users/register`, `POST /auth/users/login` | ✓ | ✓ | ✓ |
+| `GET /users`, `PATCH /users/{id}/role` | 401 | 403 | ✓ |
+| `GET`, `PUT`, `DELETE /users/{id}` | 401 | só a própria conta | ✓ |
+
+O primeiro administrador é criado na subida do user-microservice a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`. Se o e-mail já existir, a conta é promovida sem trocar a senha.
+
+---
+
 ## Fluxos
 
 ### Cadastro e e-mail de boas-vindas
@@ -215,8 +259,13 @@ MYSQL_DATABASE=user_db
 MYSQL_USER=user_app
 MYSQL_PASSWORD=sua_senha
 
-# JWT
+# JWT (o mesmo valor no car-microservice)
 SECRET_TOKEN=uma_chave_secreta_longa_e_aleatoria
+
+# Administrador criado na subida
+ADMIN_NAME=Administrador
+ADMIN_EMAIL=admin@carrental.local
+ADMIN_PASSWORD=uma_senha_forte
 
 # RabbitMQ
 RABBITMQ_ADDRESSES=amqps://usuario:senha@host/vhost
@@ -241,7 +290,12 @@ MYSQL_PASSWORD1=sua_senha
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=sua_senha_redis
+
+# JWT (mesmo valor do user-microservice)
+SECRET_TOKEN=uma_chave_secreta_longa_e_aleatoria
 ```
+
+Variáveis opcionais nos dois serviços: `FRONTEND_URL` (origens liberadas no CORS, separadas por vírgula; padrão `http://localhost:5173`). No user-microservice, `CAR_SERVICE_URL` (padrão `http://localhost:8082`).
 
 ### email-microservice/.env
 
@@ -371,6 +425,20 @@ cd user-microservice && ./mvnw spring-boot:run
 ```bash
 cd car-microservice && ./mvnw spring-boot:run
 ```
+
+### 6. Execute o front-end
+
+Requer Node.js 22.18+ ou 24.12+.
+
+```bash
+cd frontend && npm install
+```
+
+```bash
+npm run dev
+```
+
+Abre em `http://localhost:5173`. Para apontar para outras URLs de API, copie `frontend/.env.example` para `frontend/.env`.
 
 #### Pelo IntelliJ IDEA
 
@@ -589,12 +657,12 @@ Chave `user:{id}`, valor `UserCacheDto` serializado em JSON, TTL de 120 minutos.
 ## Segurança
 
 - **Senhas** nunca são armazenadas em texto puro: `BCryptPasswordEncoder` é aplicado antes da persistência.
-- **JWT** assinado em HMAC256 com o segredo de `SECRET_TOKEN`, carregando `subject` (e-mail), `id` e `name`.
+- **JWT** assinado em HMAC256 com o segredo de `SECRET_TOKEN`, carregando `subject` (e-mail), `id`, `name` e `role`, com validade de 2 horas. Tokens sem `exp` são rejeitados.
 - **Sessão stateless**: `SessionCreationPolicy.STATELESS`, sem estado no servidor.
 - **Filtro customizado** (`SecurityFilterConfig`) lê o header `Authorization`, valida o token e popula o `SecurityContext`.
-- **Rotas públicas**: apenas o cadastro e o login. Todas as demais exigem token válido.
-
-> O car-microservice ainda não valida JWT — suas rotas estão abertas. Veja [Melhorias Futuras](#melhorias-futuras).
+- **Os dois serviços validam o mesmo token**: o car-microservice confere a assinatura com o mesmo `SECRET_TOKEN` e lê o papel da claim `role`, sem consultar o user-microservice.
+- **CORS** liberado apenas para as origens de `FRONTEND_URL`.
+- Permissões por rota em [Perfis e Permissões](#perfis-e-permissões).
 
 ---
 
@@ -606,6 +674,14 @@ car-rental-services/
 ├── README.md
 ├── postman/
 │   └── car-rental-services.postman_collection.json
+│
+├── frontend/                        Vue 3 + Vite + Tailwind + daisyUI
+│   └── src/
+│       ├── api/                     clientes axios e tipos dos DTOs
+│       ├── components/              modais, navbar, tabelas
+│       ├── router/                  rotas e guards por papel
+│       ├── stores/                  sessão (Pinia) e notificações
+│       └── views/                   catálogo, login, locações e admin/
 │
 ├── user-microservice/
 │   ├── src/main/java/dev/lucas/user_microservice/
@@ -675,6 +751,16 @@ Para um módulo específico:
 cd user-microservice && ./mvnw test
 ```
 
+Front-end:
+
+```bash
+cd frontend && npm run test:unit -- --run
+```
+
+```bash
+npm run type-check && npm run lint
+```
+
 ---
 
 ## Solução de Problemas
@@ -729,7 +815,6 @@ docker compose -f car-microservice/docker-compose.yml down -v
 - [ ] Publicar o evento de aluguel no RabbitMQ (o `RentalEmailDto` já é montado, mas não é enviado)
 - [ ] Impedir locação concorrente do mesmo veículo com trava no banco, não apenas com a checagem em memória
 - [ ] Aplicar `PasswordEncoder` também na atualização de usuário
-- [ ] Validar JWT no car-microservice, impedindo aluguel em nome de terceiros
 - [ ] Corrigir `UserModel.getUsername()`, que hoje retorna string vazia e deixa o e-mail sem o nome do cliente
 - [ ] Adicionar tratamento global de exceções com `@RestControllerAdvice`
 - [ ] Documentar a API com Swagger e OpenAPI
