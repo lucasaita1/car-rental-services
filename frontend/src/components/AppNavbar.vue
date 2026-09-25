@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { assetUrl, userApi } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
 const auth = useAuthStore()
 const toast = useToastStore()
 const router = useRouter()
+
+const avatar = computed(() => assetUrl(userApi, auth.profile?.photoUrl))
+const initial = computed(() => auth.userName.charAt(0).toUpperCase())
 
 async function logout() {
   await auth.logout()
@@ -47,6 +52,12 @@ async function logout() {
       <template v-if="auth.isAuthenticated">
         <div class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="btn btn-ghost gap-2">
+            <div class="avatar" :class="{ 'avatar-placeholder': !avatar }">
+              <div class="bg-neutral text-neutral-content w-8 rounded-full">
+                <img v-if="avatar" :src="avatar" alt="" />
+                <span v-else class="text-sm">{{ initial }}</span>
+              </div>
+            </div>
             <span>{{ auth.userName }}</span>
             <span v-if="auth.isAdmin" class="badge badge-primary badge-sm">Admin</span>
           </div>
@@ -54,6 +65,7 @@ async function logout() {
             tabindex="0"
             class="dropdown-content menu bg-base-100 rounded-box z-10 w-40 p-2 shadow"
           >
+            <li><RouterLink :to="{ name: 'profile' }">Meu perfil</RouterLink></li>
             <li><button @click="logout">Sair</button></li>
           </ul>
         </div>

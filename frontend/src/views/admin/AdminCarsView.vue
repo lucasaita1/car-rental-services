@@ -4,7 +4,7 @@ import CarFormModal from '@/components/CarFormModal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { deleteCar, listCars } from '@/api/cars'
-import { errorMessage } from '@/api/http'
+import { assetUrl, carApi, errorMessage } from '@/api/http'
 import type { Car } from '@/api/types'
 import { useToastStore } from '@/stores/toast'
 
@@ -111,6 +111,7 @@ onMounted(load)
       <table class="table">
         <thead>
           <tr>
+            <th></th>
             <th>Modelo</th>
             <th>Ano</th>
             <th>Cor</th>
@@ -121,16 +122,31 @@ onMounted(load)
         </thead>
         <tbody>
           <tr v-if="cars.length === 0">
-            <td colspan="6" class="py-10 text-center text-base-content/70">
+            <td colspan="7" class="py-10 text-center text-base-content/70">
               Nenhum carro cadastrado.
             </td>
           </tr>
           <tr v-for="car in cars" :key="car.id">
+            <td class="w-20">
+              <div class="bg-base-200 h-10 w-16 overflow-hidden rounded">
+                <img
+                  v-if="car.photoUrl"
+                  :src="assetUrl(carApi, car.photoUrl) ?? ''"
+                  alt=""
+                  class="size-full object-cover"
+                />
+              </div>
+            </td>
             <td class="font-medium">{{ car.model }}</td>
             <td>{{ car.year }}</td>
             <td>{{ car.color }}</td>
             <td class="font-mono">{{ car.plate }}</td>
-            <td><StatusBadge :status="car.status" /></td>
+            <td>
+              <StatusBadge :status="car.status" />
+              <span v-if="car.reserved" class="badge badge-warning badge-soft ml-1"
+                >Em checkout</span
+              >
+            </td>
             <td class="space-x-2 text-right">
               <button class="btn btn-sm btn-ghost" @click="openEdit(car)">Editar</button>
               <button

@@ -47,3 +47,7 @@ export function errorMessage(error: unknown, fallback: string): string {
   }
   return fallback
 }
+
+export function assetUrl(instance: AxiosInstance, path: string | null | undefined): string | null {
+  return path ? `${instance.defaults.baseURL}${path}` : null
+}

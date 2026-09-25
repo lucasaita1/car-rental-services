@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from './BaseModal.vue'
-import { createCar, updateCar } from '@/api/cars'
-import { errorMessage } from '@/api/http'
+import PhotoPicker from './PhotoPicker.vue'
+import { createCar, removeCarPhoto, updateCar, uploadCarPhoto } from '@/api/cars'
+import { assetUrl, carApi, errorMessage } from '@/api/http'
 import type { Car, CarPayload, CarStatus } from '@/api/types'
 import { useToastStore } from '@/stores/toast'
 
@@ -23,6 +24,9 @@ const form = reactive<CarPayload>({
 })
 const saving = ref(false)
 const error = ref('')
+const photo = ref<File | null>(null)
+const removePhoto = ref(false)
+const pickerKey = ref(0)
 
 const isEdit = computed(() => props.car !== null)
 const isRented = computed(() => props.car?.status === 'RENTED')
@@ -30,6 +34,9 @@ const isRented = computed(() => props.car?.status === 'RENTED')
 watch(open, (value) => {
   if (!value) return
   error.value = ''
+  photo.value = null
+  removePhoto.value = false
+  pickerKey.value++
   Object.assign(form, {
     model: props.car?.model ?? '',
     color: props.car?.color ?? '',
@@ -57,7 +64,12 @@ async function submit() {
   }
   saving.value = true
   try {
-    const saved = props.car ? await updateCar(props.car.id, payload) : await createCar(payload)
+    let saved = props.car ? await updateCar(props.car.id, payload) : await createCar(payload)
+    if (photo.value) {
+      saved = await uploadCarPhoto(saved.id, photo.value)
+    } else if (removePhoto.value && props.car?.photoUrl) {
+      saved = await removeCarPhoto(saved.id)
+    }
     toast.success(isEdit.value ? 'Carro atualizado.' : 'Carro cadastrado.')
     emit('saved', saved)
     open.value = false
@@ -72,6 +84,14 @@ async function submit() {
 <template>
   <BaseModal v-model:open="open" :title="isEdit ? 'Editar carro' : 'Novo carro'">
     <form id="car-form" class="grid grid-cols-2 gap-3" @submit.prevent="submit">
+      <div class="col-span-2">
+        <PhotoPicker
+          :key="pickerKey"
+          :current-url="removePhoto ? null : assetUrl(carApi, car?.photoUrl)"
+          @select="((photo = $event), (removePhoto = false))"
+          @remove="((photo = null), (removePhoto = true))"
+        />
+      </div>
       <label class="floating-label col-span-2">
         <span>Modelo</span>
         <input v-model="form.model" class="input w-full" placeholder="Modelo" required />

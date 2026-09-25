@@ -19,4 +19,6 @@ installSessionExpiryHandler(router, () => {
   useToastStore().warning('Sua sessão expirou. Entre novamente.')
 })
 
+useAuthStore().loadProfile()
+
 app.mount('#app')

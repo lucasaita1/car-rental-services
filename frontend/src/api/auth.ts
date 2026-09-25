@@ -14,3 +14,12 @@ export async function register(payload: RegisterPayload): Promise<User> {
 export async function logout(): Promise<void> {
   await userApi.post('/auth/logout')
 }
+
+export async function forgotPassword(email: string): Promise<string> {
+  const { data } = await userApi.post<{ message: string }>('/auth/password/forgot', { email })
+  return data.message
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await userApi.post('/auth/password/reset', { token, newPassword })
+}

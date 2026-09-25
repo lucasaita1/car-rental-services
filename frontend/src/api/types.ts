@@ -12,6 +12,8 @@ export interface Car {
   returnDate: string | null
   userId: number | null
   status: CarStatus | null
+  photoUrl: string | null
+  reserved: boolean
 }
 
 export interface CarPayload {
@@ -44,6 +46,19 @@ export interface User {
   cpf: string | null
   cnh: string | null
   role: UserRole
+  photoUrl: string | null
+}
+
+export interface ProfilePayload {
+  name: string
+  email: string
+  cpf: string | null
+  cnh: string | null
+}
+
+export interface HoldResponse {
+  carId: number
+  expiresAt: string
 }
 
 export interface RegisterPayload {

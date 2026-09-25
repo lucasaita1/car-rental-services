@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import PhotoPicker from '@/components/PhotoPicker.vue'
 import { errorMessage } from '@/api/http'
+import { uploadMyPhoto } from '@/api/users'
 import type { RegisterPayload } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -12,6 +14,7 @@ const router = useRouter()
 
 const form = reactive<RegisterPayload>({ name: '', email: '', cpf: '', cnh: '', password: '' })
 const confirmPassword = ref('')
+const photo = ref<File | null>(null)
 const loading = ref(false)
 const error = ref('')
 
@@ -29,6 +32,13 @@ async function submit() {
   loading.value = true
   try {
     await auth.register({ ...form, email: form.email.trim() })
+    if (photo.value) {
+      try {
+        auth.profile = await uploadMyPhoto(photo.value)
+      } catch (e) {
+        toast.warning(errorMessage(e, 'Conta criada, mas a foto não foi enviada.'))
+      }
+    }
     toast.success('Conta criada! Você já está conectado.')
     router.push({ name: 'catalog' })
   } catch (e) {
@@ -44,6 +54,12 @@ async function submit() {
     <div class="card bg-base-100 border border-base-300 shadow-sm">
       <form class="card-body gap-4" @submit.prevent="submit">
         <h1 class="card-title text-2xl">Criar conta</h1>
+        <PhotoPicker
+          round
+          label="Foto (opcional)"
+          @select="photo = $event"
+          @remove="photo = null"
+        />
         <label class="floating-label">
           <span>Nome completo</span>
           <input

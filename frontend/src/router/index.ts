@@ -20,6 +20,23 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/esqueci-senha',
+      name: 'forgot-password',
+      component: () => import('@/views/ForgotPasswordView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+      path: '/redefinir-senha',
+      name: 'reset-password',
+      component: () => import('@/views/ResetPasswordView.vue'),
+    },
+    {
+      path: '/perfil',
+      name: 'profile',
+      component: () => import('@/views/ProfileView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/minhas-locacoes',
       name: 'my-rentals',
       component: () => import('@/views/MyRentalsView.vue'),

@@ -62,6 +62,12 @@ async function submit() {
             required
           />
         </label>
+        <RouterLink
+          :to="{ name: 'forgot-password' }"
+          class="link link-hover -mt-2 text-right text-sm"
+        >
+          Esqueci minha senha
+        </RouterLink>
         <div v-if="error" role="alert" class="alert alert-error alert-soft">{{ error }}</div>
         <button class="btn btn-primary" :disabled="loading">
           <span v-if="loading" class="loading loading-spinner loading-sm"></span>
