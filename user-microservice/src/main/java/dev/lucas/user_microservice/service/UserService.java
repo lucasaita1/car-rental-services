@@ -1,13 +1,16 @@
 package dev.lucas.user_microservice.service;
 
+import dev.lucas.user_microservice.dtos.ProfileUpdateRequest;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.enums.UserRole;
 import dev.lucas.user_microservice.producer.UserProducer;
 import dev.lucas.user_microservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +25,9 @@ public class UserService {
 
     @Transactional
     public UserModel saveUser(UserModel userModel){
+        if (userRepository.existsByEmail(userModel.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já cadastrado.");
+        }
 
         userModel.setPassword(passwordEncoder.encode(userModel.getPassword()));
 
@@ -39,22 +45,16 @@ public class UserService {
     }
 
     @Transactional
-    public Optional<UserModel> updateById(Long id, UserModel user) {
-        return userRepository.findById(id).map(existingUser -> {
-
-            if (user.getName() != null && !user.getName().isBlank()) {
-                existingUser.setName(user.getName());
+    public Optional<UserModel> updateProfile(Long id, ProfileUpdateRequest request) {
+        return userRepository.findById(id).map(user -> {
+            if (userRepository.existsByEmailAndIdNot(request.email(), id)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já cadastrado.");
             }
-
-            if (user.getEmail() != null && !user.getEmail().isBlank()) {
-                existingUser.setEmail(user.getEmail());
-            }
-
-            if (user.getPassword() != null && !user.getPassword().isBlank()) {
-                existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
-            }
-
-            return existingUser;
+            user.setName(request.name());
+            user.setEmail(request.email());
+            user.setCpf(request.cpf());
+            user.setCnh(request.cnh());
+            return userRepository.save(user);
         });
     }
 

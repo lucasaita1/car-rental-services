@@ -6,6 +6,7 @@ import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.enums.RentalStatus;
 import dev.lucas.car_microservice.repository.CarRepository;
 import dev.lucas.car_microservice.repository.RentalRepository;
+import dev.lucas.car_microservice.util.InputSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -45,9 +46,9 @@ public class CarService {
                     "Carro com locação ativa: registre a devolução antes de mudar o status.");
         }
 
-        car.setModel(dto.getModel());
-        car.setColor(dto.getColor());
-        car.setPlate(dto.getPlate());
+        car.setModel(InputSanitizer.text(dto.getModel()));
+        car.setColor(InputSanitizer.text(dto.getColor()));
+        car.setPlate(InputSanitizer.plate(dto.getPlate()));
         car.setYear(dto.getYear());
         if (dto.getStatus() != null) {
             car.setStatus(dto.getStatus());

@@ -5,6 +5,7 @@ import dev.lucas.user_microservice.config.TokenConfig;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.enums.UserRole;
 import dev.lucas.user_microservice.repository.UserRepository;
+import dev.lucas.user_microservice.security.RateLimiter;
 import dev.lucas.user_microservice.security.TokenRevocationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,9 @@ class LoginControllerTest {
 
     @MockitoBean
     private TokenRevocationService tokenRevocationService;
+
+    @MockitoBean
+    private RateLimiter rateLimiter;
 
     private UserModel admin() {
         UserModel user = new UserModel();
@@ -133,5 +137,19 @@ class LoginControllerTest {
     @DisplayName("Logout sem token retorna 401")
     void logoutWithoutTokenIsUnauthorized() throws Exception {
         mockMvc.perform(post("/auth/logout")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Login acima do limite retorna 429 sem tentar autenticar")
+    void loginIsRateLimited() throws Exception {
+        when(rateLimiter.retryAfterSeconds(eq("login:127.0.0.1"), eq(5), any())).thenReturn(42L);
+
+        mockMvc.perform(post("/auth/users/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"admin@x.com\",\"password\":\"senha\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value("Muitas tentativas. Tente novamente em 42 segundos."));
+
+        verify(authenticationManager, org.mockito.Mockito.never()).authenticate(any());
     }
 }

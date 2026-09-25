@@ -4,14 +4,15 @@ import dev.lucas.car_microservice.dto.CarRequestDto;
 import dev.lucas.car_microservice.dto.CarResponseDto;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.enums.CarStatus;
+import dev.lucas.car_microservice.util.InputSanitizer;
 
 public class CarMapper {
 
     public static CarModel toEntity(CarRequestDto dto) {
         CarModel car = new CarModel();
-        car.setModel(dto.getModel());
-        car.setColor(dto.getColor());
-        car.setPlate(dto.getPlate());
+        car.setModel(InputSanitizer.text(dto.getModel()));
+        car.setColor(InputSanitizer.text(dto.getColor()));
+        car.setPlate(InputSanitizer.plate(dto.getPlate()));
         car.setYear(dto.getYear());
         car.setRentalDate(dto.getRentalDate());
         car.setReturnDate(dto.getReturnDate());

@@ -4,6 +4,7 @@ import dev.lucas.user_microservice.config.SecurityConfig;
 import dev.lucas.user_microservice.config.TokenConfig;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.enums.UserRole;
+import dev.lucas.user_microservice.security.RateLimiter;
 import dev.lucas.user_microservice.security.TokenRevocationService;
 import dev.lucas.user_microservice.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -62,6 +63,9 @@ class UserControllerSecurityTest {
     @MockitoBean
     private TokenRevocationService tokenRevocationService;
 
+    @MockitoBean
+    private RateLimiter rateLimiter;
+
     private UserModel usuario(Long id, UserRole role) {
         UserModel user = new UserModel();
         user.setId(id);
@@ -86,7 +90,7 @@ class UserControllerSecurityTest {
 
         mockMvc.perform(post("/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Ana\",\"email\":\"ana@x.com\",\"password\":\"123\"}"))
+                        .content("{\"name\":\"Ana\",\"email\":\"ana@x.com\",\"password\":\"senhaForte123\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.role").value("USER"));
     }
@@ -98,7 +102,7 @@ class UserControllerSecurityTest {
 
         mockMvc.perform(post("/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Ana\",\"email\":\"ana@x.com\",\"password\":\"123\",\"role\":\"ADMIN\"}"))
+                        .content("{\"name\":\"Ana\",\"email\":\"ana@x.com\",\"password\":\"senhaForte123\",\"role\":\"ADMIN\"}"))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<UserModel> captor = ArgumentCaptor.forClass(UserModel.class);
@@ -240,5 +244,62 @@ class UserControllerSecurityTest {
                 .andExpect(status().isNoContent());
 
         verify(tokenRevocationService).revokeAll(1L);
+    }
+
+    @Test
+    @DisplayName("Cadastro inválido retorna 400 com a mensagem do campo")
+    void invalidRegisterReturnsFieldMessage() throws Exception {
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Ana\",\"email\":\"nao-e-email\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("E-mail inválido."))
+                .andExpect(jsonPath("$.errors.email").exists());
+
+        verify(userService, never()).saveUser(any());
+    }
+
+    @Test
+    @DisplayName("Senha curta é recusada no cadastro")
+    void shortPasswordIsRejected() throws Exception {
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Ana\",\"email\":\"ana@x.com\",\"password\":\"123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").exists());
+    }
+
+    @Test
+    @DisplayName("Cadastro sanitiza nome, e-mail e documentos antes de salvar")
+    void registerSanitizesInput() throws Exception {
+        when(userService.saveUser(any())).thenAnswer(i -> i.getArgument(0));
+
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"  <script>alert(1)</script>Ana   Souza \","
+                                + "\"email\":\"  ANA@X.COM \",\"cpf\":\"123.456.789-00\","
+                                + "\"cnh\":\"987 654 321 00\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<UserModel> captor = ArgumentCaptor.forClass(UserModel.class);
+        verify(userService).saveUser(captor.capture());
+        assertThat(captor.getValue().getName()).isEqualTo("alert(1)Ana Souza");
+        assertThat(captor.getValue().getEmail()).isEqualTo("ana@x.com");
+        assertThat(captor.getValue().getCpf()).isEqualTo("12345678900");
+        assertThat(captor.getValue().getCnh()).isEqualTo("98765432100");
+    }
+
+    @Test
+    @DisplayName("Cadastro acima do limite retorna 429")
+    void registerIsRateLimited() throws Exception {
+        when(rateLimiter.retryAfterSeconds(any(), org.mockito.ArgumentMatchers.anyInt(), any())).thenReturn(120L);
+
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Ana\",\"email\":\"ana@x.com\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "120"));
+
+        verify(userService, never()).saveUser(any());
     }
 }

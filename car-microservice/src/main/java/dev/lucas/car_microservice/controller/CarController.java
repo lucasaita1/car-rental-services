@@ -5,6 +5,7 @@ import dev.lucas.car_microservice.dto.CarResponseDto;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.mapper.CarMapper;
 import dev.lucas.car_microservice.service.CarService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class CarController {
     private final CarService carService;
 
     @PostMapping
-    public ResponseEntity<CarResponseDto> createCar(@RequestBody CarRequestDto carRequestDto) {
+    public ResponseEntity<CarResponseDto> createCar(@Valid @RequestBody CarRequestDto carRequestDto) {
         CarModel carModel = CarMapper.toEntity(carRequestDto);
         CarModel savedCar = carService.save(carModel);
         CarResponseDto responseDto = CarMapper.toResponseDto(savedCar);
@@ -44,7 +45,7 @@ public class CarController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CarResponseDto> updateCar(@PathVariable Long id, @RequestBody CarRequestDto carRequestDto) {
+    public ResponseEntity<CarResponseDto> updateCar(@PathVariable Long id, @Valid @RequestBody CarRequestDto carRequestDto) {
         CarModel updated = carService.update(id, carRequestDto);
         return ResponseEntity.ok(CarMapper.toResponseDto(updated));
     }

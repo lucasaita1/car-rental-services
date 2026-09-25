@@ -239,4 +239,31 @@ class CarControllerTest {
 
         verify(carService, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Placa inválida retorna 400 com a mensagem do campo")
+    void invalidPlateIsRejected() throws Exception {
+        mockMvc.perform(post("/cars")
+                        .header("Authorization", TestJwt.admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"PLACA1\",\"year\":2024}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Placa inválida. Use ABC-1234 ou ABC1D23."));
+
+        verify(carService, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Carro sem modelo e com ano fora da faixa retorna 400")
+    void missingFieldsAreRejected() throws Exception {
+        mockMvc.perform(put("/cars/1")
+                        .header("Authorization", TestJwt.admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"color\":\"Preto\",\"plate\":\"ABC1D23\",\"year\":1800}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.model").exists())
+                .andExpect(jsonPath("$.errors.year").exists());
+
+        verify(carService, never()).update(anyLong(), any());
+    }
 }

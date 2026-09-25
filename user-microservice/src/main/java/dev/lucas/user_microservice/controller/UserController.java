@@ -1,6 +1,7 @@
 package dev.lucas.user_microservice.controller;
 
 import dev.lucas.user_microservice.config.JWTUserData;
+import dev.lucas.user_microservice.dtos.ProfileUpdateRequest;
 import dev.lucas.user_microservice.dtos.RoleUpdateRequest;
 import dev.lucas.user_microservice.dtos.UserRequest;
 import dev.lucas.user_microservice.dtos.UserResponse;
@@ -52,11 +53,10 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(@PathVariable Long id,
-                                                   @Valid @RequestBody UserRequest request,
+                                                   @Valid @RequestBody ProfileUpdateRequest request,
                                                    @AuthenticationPrincipal JWTUserData principal) {
         requireSelfOrAdmin(principal, id);
-        UserModel userModel = toModel(request);
-        Optional<UserModel> updatedOpt = userService.updateById(id, userModel);
+        Optional<UserModel> updatedOpt = userService.updateProfile(id, request);
         return updatedOpt.map(user -> ResponseEntity.ok(toResponse(user)))
                 .orElse(ResponseEntity.notFound().build());
     }

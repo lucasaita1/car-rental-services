@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-public record UserRequest(
+public record ProfileUpdateRequest(
         @NotBlank(message = "Informe o nome.")
         @Size(min = 2, max = 100, message = "O nome deve ter entre 2 e 100 caracteres.")
         String name,
@@ -20,13 +20,9 @@ public record UserRequest(
         String cpf,
 
         @Pattern(regexp = "\\d{11}", message = "CNH deve ter 11 dígitos.")
-        String cnh,
+        String cnh) {
 
-        @NotBlank(message = "Informe a senha.")
-        @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72 caracteres.")
-        String password) {
-
-    public UserRequest {
+    public ProfileUpdateRequest {
         name = InputSanitizer.text(name);
         email = InputSanitizer.email(email);
         cpf = InputSanitizer.digits(cpf);

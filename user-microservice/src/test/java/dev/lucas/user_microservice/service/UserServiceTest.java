@@ -1,5 +1,6 @@
 package dev.lucas.user_microservice.service;
 
+import dev.lucas.user_microservice.dtos.ProfileUpdateRequest;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.producer.UserProducer;
 import dev.lucas.user_microservice.repository.UserRepository;
@@ -13,11 +14,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -139,47 +142,47 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Atualização deve ignorar campos nulos ou em branco")
-    void shouldIgnoreBlankFieldsOnUpdate() {
+    @DisplayName("Cadastro com e-mail já usado retorna 409")
+    void shouldRejectDuplicateEmailOnRegister() {
+        when(userRepository.existsByEmail("lucas@email.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.saveUser(novoUsuario))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("409");
+        verify(userRepository, never()).save(any());
+        verify(userProducer, never()).sendRegisterEmail(any());
+    }
+
+    @Test
+    @DisplayName("Atualização de perfil troca nome, e-mail, CPF e CNH")
+    void shouldUpdateProfile() {
         UserModel existente = new UserModel();
         existente.setId(1L);
-        existente.setName("Nome Antigo");
-        existente.setEmail("antigo@email.com");
         existente.setPassword("hashAntigo");
         when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(userRepository.save(any(UserModel.class))).thenAnswer(i -> i.getArgument(0));
 
-        UserModel alteracoes = new UserModel();
-        alteracoes.setName("Nome Novo");
-        alteracoes.setEmail("   ");   // em branco: deve ser ignorado
-        alteracoes.setPassword(null); // nulo: deve ser ignorado
-
-        UserModel atualizado = userService.updateById(1L, alteracoes).orElseThrow();
+        UserModel atualizado = userService.updateProfile(1L,
+                new ProfileUpdateRequest("Nome Novo", "novo@email.com", "12345678900", "98765432100")).orElseThrow();
 
         assertThat(atualizado.getName()).isEqualTo("Nome Novo");
-        assertThat(atualizado.getEmail()).isEqualTo("antigo@email.com");
+        assertThat(atualizado.getEmail()).isEqualTo("novo@email.com");
+        assertThat(atualizado.getCpf()).isEqualTo("12345678900");
+        assertThat(atualizado.getCnh()).isEqualTo("98765432100");
         assertThat(atualizado.getPassword()).isEqualTo("hashAntigo");
     }
 
     @Test
-    @DisplayName("Deve criptografar também a senha trocada na atualização")
-    void shouldEncodePasswordOnUpdate() {
-        UserModel existente = new UserModel();
-        existente.setId(1L);
-        existente.setPassword("hashAntigo");
-        when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
-        when(passwordEncoder.encode("novaSenhaEmTextoPuro")).thenReturn("$2a$10$novoHash");
+    @DisplayName("Atualização para e-mail de outra conta retorna 409")
+    void shouldRejectEmailOwnedByAnotherUser() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(new UserModel()));
+        when(userRepository.existsByEmailAndIdNot("outro@email.com", 1L)).thenReturn(true);
 
-        UserModel alteracoes = new UserModel();
-        alteracoes.setPassword("novaSenhaEmTextoPuro");
-
-        UserModel atualizado = userService.updateById(1L, alteracoes).orElseThrow();
-
-        // Gravar a senha crua aqui impediria o login, porque o BCrypt do
-        // AuthenticationManager nunca casaria com um valor não criptografado.
-        assertThat(atualizado.getPassword())
-                .isEqualTo("$2a$10$novoHash")
-                .isNotEqualTo("novaSenhaEmTextoPuro");
-        verify(passwordEncoder).encode("novaSenhaEmTextoPuro");
+        assertThatThrownBy(() -> userService.updateProfile(1L,
+                new ProfileUpdateRequest("Nome", "outro@email.com", null, null)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("409");
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -187,7 +190,8 @@ class UserServiceTest {
     void shouldReturnEmptyWhenUpdatingUnknownId() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThat(userService.updateById(99L, new UserModel())).isEmpty();
+        assertThat(userService.updateProfile(99L,
+                new ProfileUpdateRequest("Nome", "a@b.com", null, null))).isEmpty();
     }
 
     @Test

@@ -59,6 +59,17 @@ class CarMapperTest {
         }
 
         @Test
+        @DisplayName("Deve sanitizar modelo e cor e padronizar a placa em maiúsculas")
+        void shouldSanitizeTextFields() {
+            CarModel entity = CarMapper.toEntity(CarRequestDto.builder()
+                    .model(" <b>Civic</b>  Touring ").color("Preto<script>x</script>").plate(" abc1d23 ").build());
+
+            assertThat(entity.getModel()).isEqualTo("Civic Touring");
+            assertThat(entity.getColor()).isEqualTo("Pretox");
+            assertThat(entity.getPlate()).isEqualTo("ABC1D23");
+        }
+
+        @Test
         @DisplayName("Carro cadastrado sem status deve nascer disponível")
         void shouldDefaultStatusToAvailable() {
             CarModel entity = CarMapper.toEntity(CarRequestDto.builder().model("Civic").build());
