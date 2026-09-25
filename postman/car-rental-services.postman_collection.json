@@ -172,6 +172,88 @@
             "description": "Login com o administrador criado na subida (ADMIN_EMAIL / ADMIN_PASSWORD do .env). Preencha adminPassword nas variáveis da coleção. Salva o token como os demais."
           },
           "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/auth/logout",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revoga o token atual. Depois disso ele não é aceito em nenhum serviço."
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/auth/password/forgot",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password",
+                "forgot"
+              ]
+            },
+            "description": "Sempre 202. Se o e-mail existir, envia o link de redefinição (válido por 30 min).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/auth/password/reset",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password",
+                "reset"
+              ]
+            },
+            "description": "Token de uso único recebido por e-mail. Revoga todas as sessões.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<token do link>\",\n  \"newPassword\": \"novaSenha123\"\n}"
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -368,6 +450,161 @@
       ]
     },
     {
+      "name": "Profile",
+      "description": "Rotas do próprio usuário logado.",
+      "item": [
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/me",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Update Me",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/me",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lucas Aita\",\n  \"email\": \"{{userEmail}}\",\n  \"cpf\": \"12345678901\",\n  \"cnh\": \"98765432100\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/me/password",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "password"
+              ]
+            },
+            "description": "Exige a senha atual. Revoga todas as sessões.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{userPassword}}\",\n  \"newPassword\": \"novaSenha123\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/me/photo",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "photo"
+              ]
+            },
+            "description": "JPG, PNG ou WebP até 5 MB. Campo: file.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/me/photo",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "photo"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Cars",
       "description": "CRUD da frota no car-microservice. Sem autenticação.",
       "item": [
@@ -513,6 +750,66 @@
             "description": "ADMIN. Remove o veículo. Retorna 204 No Content."
           },
           "response": []
+        },
+        {
+          "name": "Upload Car Photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{carUrl}}/cars/{{carId}}/photo",
+              "host": [
+                "{{carUrl}}"
+              ],
+              "path": [
+                "cars",
+                "{{carId}}",
+                "photo"
+              ]
+            },
+            "description": "ADMIN. JPG, PNG ou WebP até 5 MB. Campo: file.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Car Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{carUrl}}/cars/{{carId}}/photo",
+              "host": [
+                "{{carUrl}}"
+              ],
+              "path": [
+                "cars",
+                "{{carId}}",
+                "photo"
+              ]
+            },
+            "description": "ADMIN."
+          },
+          "response": []
         }
       ]
     },
@@ -588,6 +885,56 @@
               ]
             },
             "description": "Sem corpo. Volta o status para AVAILABLE e limpa a rentalDate.\n\nRespostas possíveis (texto puro):\n- 'Carro devolvido e status atualizado para disponível.'\n- 'Carro já está disponível, não há aluguel ativo.'\n- 'Carro não encontrado!'"
+          },
+          "response": []
+        },
+        {
+          "name": "Hold Car",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{carUrl}}/rental/hold/{{carId}}",
+              "host": [
+                "{{carUrl}}"
+              ],
+              "path": [
+                "rental",
+                "hold",
+                "{{carId}}"
+              ]
+            },
+            "description": "Reserva o carro por 10 minutos para o usuário do token. 409 se outro cliente estiver com ele."
+          },
+          "response": []
+        },
+        {
+          "name": "Release Hold",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{carUrl}}/rental/hold/{{carId}}",
+              "host": [
+                "{{carUrl}}"
+              ],
+              "path": [
+                "rental",
+                "hold",
+                "{{carId}}"
+              ]
+            },
+            "description": "Solta a reserva do próprio usuário."
           },
           "response": []
         }

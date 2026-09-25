@@ -161,6 +161,8 @@ SPA em `frontend/`, consumindo os dois serviços pelo navegador.
 | `/` | público | Catálogo com busca e filtro por status |
 | `/login`, `/cadastro` | só deslogado | Entrar e criar conta |
 | `/minhas-locacoes` | logado | Histórico e devolução das próprias locações |
+| `/perfil` | logado | Foto, dados pessoais e troca de senha |
+| `/esqueci-senha`, `/redefinir-senha` | público | Recuperação de senha por e-mail |
 | `/admin/frota` | ADMIN | Cadastro, edição e remoção de carros (modais) |
 | `/admin/locacoes` | ADMIN | Locações em andamento e atrasadas |
 | `/admin/usuarios` | ADMIN | Promover ou remover administradores |
@@ -177,11 +179,17 @@ Há dois papéis: `USER` (cliente) e `ADMIN`. Todo cadastro público nasce `USER
 |---|:---:|:---:|:---:|
 | `GET /cars`, `GET /cars/{id}` | ✓ | ✓ | ✓ |
 | `POST /cars`, `PUT /cars/{id}`, `DELETE /cars/{id}` | 401 | 403 | ✓ |
+| `POST`, `DELETE /cars/{id}/photo` | 401 | 403 | ✓ |
+| `POST`, `DELETE /rental/hold/{carId}` | 401 | ✓ (reserva em nome próprio) | ✓ |
 | `POST /rental/rent/{carId}/user/{userId}` | 401 | só o próprio `userId` | ✓ |
 | `POST /rental/return/{carId}` | 401 | só locação própria | ✓ |
 | `GET /rental/user/{userId}` | 401 | só o próprio | ✓ |
 | `GET /rental/active`, `/overdue`, `/car/{id}` | 401 | 403 | ✓ |
 | `POST /users/register`, `POST /auth/users/login` | ✓ | ✓ | ✓ |
+| `POST /auth/password/forgot`, `POST /auth/password/reset` | ✓ | ✓ | ✓ |
+| `POST /auth/logout` | 401 | ✓ | ✓ |
+| `GET`, `PUT /users/me`, `PUT /users/me/password`, `POST`, `DELETE /users/me/photo` | 401 | ✓ | ✓ |
+| `GET /files/**` (fotos) | ✓ | ✓ | ✓ |
 | `GET /users`, `PATCH /users/{id}/role` | 401 | 403 | ✓ |
 | `GET`, `PUT`, `DELETE /users/{id}` | 401 | só a própria conta | ✓ |
 
@@ -220,16 +228,37 @@ POST /auth/users/login
 
 A chamada ao serviço de carros é isolada em `try/catch`: se ele estiver fora do ar, o login continua funcionando normalmente e a falha é apenas registrada em log.
 
-### Aluguel
+### Reserva e aluguel
 
 ```
-POST /rental/rent/{carId}/user/{userId}
-   │
-   ├─ busca o veículo no MySQL
-   ├─ recusa se o status já for RENTED
+POST /rental/hold/{carId}                 (clique em "Alugar")
+   ├─ recusa carro em manutenção ou já alugado
+   ├─ SET NX car:hold:{carId} = userId, TTL 10 min  (atômico)
+   ├─ se outro cliente segura o carro → 409
+   └─ solta a reserva anterior do mesmo cliente, se houver
+
+POST /rental/rent/{carId}/user/{userId}   (confirmação no checkout)
+   ├─ exige que a reserva seja do próprio cliente (ou esteja livre)
    ├─ lê "user:{userId}" no Redis; se ausente, exige novo login
-   ├─ define rentalDate = hoje e status = RENTED
-   └─ monta o RentalEmailDto com os dados do cliente e do veículo
+   ├─ grava a locação em TB_RENTALS e marca o carro como RENTED
+   └─ solta a reserva
+
+DELETE /rental/hold/{carId}               (cancelar ou fechar o checkout)
+```
+
+Enquanto a reserva existe, o catálogo devolve `"reserved": true` e o carro aparece como "Reservado" para os outros clientes.
+
+### Recuperação de senha
+
+```
+POST /auth/password/forgot { email }      → sempre 202, exista o e-mail ou não
+   └─ token aleatório de 32 bytes; o Redis guarda só o SHA-256, TTL 30 min
+      └─ fila password_reset_email → email-microservice envia o link
+
+POST /auth/password/reset { token, newPassword }
+   ├─ consome o token (GETDEL, uso único)
+   ├─ grava a nova senha com BCrypt
+   └─ revoga todas as sessões do usuário
 ```
 
 ---
@@ -270,7 +299,8 @@ Os modelos listam todas as chaves. As principais:
 |---|---|---|
 | `SECRET_TOKEN` | user, car | Mesmo valor nos dois: o car valida o JWT emitido pelo user |
 | `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD` | user, car | Usadas também pelo container do MySQL |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | car | |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | user, car | A mesma instância nos dois |
+| `STORAGE_DIR` | user, car | Pasta dos uploads; padrão `storage` |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | user | Administrador criado na subida |
 | `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM` | email | Senha de app do Gmail, **sem aspas** |
 | `FRONTEND_URL` | user, car | Origens liberadas no CORS |
@@ -610,9 +640,22 @@ Ambos os serviços usam `spring.jpa.hibernate.ddl-auto=update`, então o Hiberna
 }
 ```
 
-### Cache (Redis)
+### Redis
 
-Chave `user:{id}`, valor `UserCacheDto` serializado em JSON, TTL de 120 minutos.
+| Chave | Serviço | Uso | TTL |
+|---|---|---|---|
+| `user:{id}` | car | Dados do cliente logado, para o aluguel | 120 min |
+| `auth:revoked:{jti}` | user escreve, car lê | Tokens revogados no logout | até o `exp` do token |
+| `auth:token-version:{userId}` | user escreve, car lê | Versão dos tokens; incrementa ao trocar senha, papel ou remover a conta | — |
+| `auth:pwd-reset:{sha256}` | user | Link de redefinição de senha | 30 min |
+| `car:hold:{carId}` | car | Reserva durante o checkout | 10 min |
+| `rl:{rota}:{ip}` | user | Contador do rate limit | janela da regra |
+
+Os dois serviços precisam apontar para a **mesma instância** do Redis.
+
+### Arquivos
+
+Fotos ficam em `storage/users` e `storage/cars`, dentro da pasta de execução de cada serviço (configurável por `STORAGE_DIR`), e são servidas em `/files/**`. O banco guarda só o caminho relativo. A pasta está no `.gitignore`.
 
 ---
 
@@ -623,6 +666,10 @@ Chave `user:{id}`, valor `UserCacheDto` serializado em JSON, TTL de 120 minutos.
 - **Sessão stateless**: `SessionCreationPolicy.STATELESS`, sem estado no servidor.
 - **Filtro customizado** (`SecurityFilterConfig`) lê o header `Authorization`, valida o token e popula o `SecurityContext`.
 - **Os dois serviços validam o mesmo token**: o car-microservice confere a assinatura com o mesmo `SECRET_TOKEN` e lê o papel da claim `role`, sem consultar o user-microservice.
+- **Logout de verdade**: cada token tem um `jti`; o logout grava esse id numa lista de revogação no Redis, consultada pelos dois serviços. Trocar a senha, mudar o papel ou remover a conta invalida **todos** os tokens do usuário. Se o Redis cair, nenhum token é aceito (falha fechada).
+- **Rate limit** por IP no Redis: login 5/min, cadastro 10/h, esqueci a senha 3/15 min, redefinição 5/15 min. Resposta 429 com `Retry-After`.
+- **Sanitização e validação**: nome sem HTML nem caracteres de controle, e-mail normalizado, CPF e CNH só com dígitos, senha de 8 a 72 caracteres, e-mail único. Carros validam placa, ano e campos obrigatórios no backend.
+- **Uploads**: tipo detectado pelos bytes do arquivo (JPEG, PNG, WebP), máximo de 5 MB, nome original descartado e trocado por UUID.
 - **CORS** liberado apenas para as origens de `FRONTEND_URL`.
 - Permissões por rota em [Perfis e Permissões](#perfis-e-permissões).
 
@@ -743,7 +790,6 @@ npm run type-check && npm run lint
 ## Melhorias Futuras
 
 - [ ] Publicar o evento de aluguel no RabbitMQ (o `RentalEmailDto` já é montado, mas não é enviado)
-- [ ] Impedir locação concorrente do mesmo veículo com trava no banco, não apenas com a checagem em memória
 - [ ] Aplicar `PasswordEncoder` também na atualização de usuário
 - [ ] Corrigir `UserModel.getUsername()`, que hoje retorna string vazia e deixa o e-mail sem o nome do cliente
 - [ ] Adicionar tratamento global de exceções com `@RestControllerAdvice`
