@@ -11,12 +11,17 @@ import org.springframework.context.annotation.Configuration;
 @EnableRabbit
 public class RabbitConfig {
 
-    private final String queueName = "register_email";
-
+    public static final String REGISTER_QUEUE = "register_email";
+    public static final String PASSWORD_RESET_QUEUE = "password_reset_email";
 
     @Bean
     public Queue queue() {
-        return new Queue(queueName, true);
+        return new Queue(REGISTER_QUEUE, true);
+    }
+
+    @Bean
+    public Queue passwordResetQueue() {
+        return new Queue(PASSWORD_RESET_QUEUE, true);
     }
 
     @Bean
