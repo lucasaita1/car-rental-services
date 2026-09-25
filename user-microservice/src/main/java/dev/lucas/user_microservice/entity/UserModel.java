@@ -29,6 +29,7 @@ public class UserModel implements UserDetails {
     private String cpf;
     private String cnh;
     private String password;
+    private String photoPath;
 
     @Enumerated(EnumType.STRING)
     private UserRole role = UserRole.USER;

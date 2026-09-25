@@ -4,6 +4,7 @@ import dev.lucas.user_microservice.dtos.ProfileUpdateRequest;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.producer.UserProducer;
 import dev.lucas.user_microservice.repository.UserRepository;
+import dev.lucas.user_microservice.storage.FileStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -42,6 +44,9 @@ class UserServiceTest {
 
     @Mock
     private UserProducer userProducer;
+
+    @Mock
+    private FileStorageService storage;
 
     @InjectMocks
     private UserService userService;
@@ -200,5 +205,60 @@ class UserServiceTest {
         userService.deleteById(1L);
 
         verify(userRepository).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("Troca de senha exige a senha atual correta")
+    void shouldRejectWrongCurrentPassword() {
+        UserModel existente = new UserModel();
+        existente.setPassword("$2a$hashAtual");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(passwordEncoder.matches("errada", "$2a$hashAtual")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.changePassword(1L, "errada", "novaSenha123"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Senha atual incorreta");
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Troca de senha grava a nova senha criptografada")
+    void shouldChangePassword() {
+        UserModel existente = new UserModel();
+        existente.setPassword("$2a$hashAtual");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(passwordEncoder.matches("atual", "$2a$hashAtual")).thenReturn(true);
+        when(passwordEncoder.encode("novaSenha123")).thenReturn("$2a$hashNovo");
+
+        userService.changePassword(1L, "atual", "novaSenha123");
+
+        assertThat(existente.getPassword()).isEqualTo("$2a$hashNovo");
+        verify(userRepository).save(existente);
+    }
+
+    @Test
+    @DisplayName("Nova foto de perfil substitui a anterior")
+    void shouldReplaceProfilePhoto() {
+        UserModel existente = new UserModel();
+        existente.setPhotoPath("users/antiga.jpg");
+        MockMultipartFile file = new MockMultipartFile("file", "eu.png", "image/png", new byte[]{1});
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(storage.storeImage(file, "users")).thenReturn("users/nova.png");
+        when(userRepository.save(any(UserModel.class))).thenAnswer(i -> i.getArgument(0));
+
+        assertThat(userService.updatePhoto(1L, file).getPhotoPath()).isEqualTo("users/nova.png");
+        verify(storage).delete("users/antiga.jpg");
+    }
+
+    @Test
+    @DisplayName("Remover a foto de perfil apaga o arquivo")
+    void shouldRemoveProfilePhoto() {
+        UserModel existente = new UserModel();
+        existente.setPhotoPath("users/foto.jpg");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(userRepository.save(any(UserModel.class))).thenAnswer(i -> i.getArgument(0));
+
+        assertThat(userService.removePhoto(1L).getPhotoPath()).isNull();
+        verify(storage).delete("users/foto.jpg");
     }
 }

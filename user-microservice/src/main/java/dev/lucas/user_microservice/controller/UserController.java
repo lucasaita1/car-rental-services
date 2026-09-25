@@ -31,13 +31,13 @@ public class UserController {
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
         UserModel userModel = toModel(request);
         UserModel savedUser = userService.saveUser(userModel);
-        return ResponseEntity.status(201).body(toResponse(savedUser));
+        return ResponseEntity.status(201).body(UserResponse.from(savedUser));
     }
 
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         List<UserResponse> users = userService.getAllUsers().stream()
-                .map(this::toResponse)
+                .map(UserResponse::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
     }
@@ -47,7 +47,7 @@ public class UserController {
                                                     @AuthenticationPrincipal JWTUserData principal) {
         requireSelfOrAdmin(principal, id);
         Optional<UserModel> userOpt = userService.getUserById(id);
-        return userOpt.map(user -> ResponseEntity.ok(toResponse(user)))
+        return userOpt.map(user -> ResponseEntity.ok(UserResponse.from(user)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -57,7 +57,7 @@ public class UserController {
                                                    @AuthenticationPrincipal JWTUserData principal) {
         requireSelfOrAdmin(principal, id);
         Optional<UserModel> updatedOpt = userService.updateProfile(id, request);
-        return updatedOpt.map(user -> ResponseEntity.ok(toResponse(user)))
+        return updatedOpt.map(user -> ResponseEntity.ok(UserResponse.from(user)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -72,7 +72,7 @@ public class UserController {
         return userService.changeRole(id, request.role())
                 .map(user -> {
                     tokenRevocationService.revokeAll(user.getId());
-                    return ResponseEntity.ok(toResponse(user));
+                    return ResponseEntity.ok(UserResponse.from(user));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -106,16 +106,5 @@ public class UserController {
         user.setCnh(request.cnh());
         user.setPassword(request.password());
         return user;
-    }
-
-    private UserResponse toResponse(UserModel user) {
-        return new UserResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getCpf(),
-                user.getCnh(),
-                user.getRole()
-        );
     }
 }
