@@ -1,6 +1,7 @@
 package dev.lucas.user_microservice.service;
 
 import dev.lucas.user_microservice.entity.UserModel;
+import dev.lucas.user_microservice.enums.UserRole;
 import dev.lucas.user_microservice.producer.UserProducer;
 import dev.lucas.user_microservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +25,6 @@ public class UserService {
 
         userModel.setPassword(passwordEncoder.encode(userModel.getPassword()));
 
-        // O evento precisa ser publicado depois do save: antes disso o id ainda
-        // não foi gerado pelo banco e o EmailDto sairia com userId nulo.
         UserModel savedUser = userRepository.save(userModel);
         userProducer.sendRegisterEmail(savedUser);
         return savedUser;
@@ -52,12 +51,18 @@ public class UserService {
             }
 
             if (user.getPassword() != null && !user.getPassword().isBlank()) {
-                // A senha precisa passar pelo mesmo encoder usado no cadastro,
-                // senão o BCrypt não casa no login e o usuário perde o acesso.
                 existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
             }
 
             return existingUser;
+        });
+    }
+
+    @Transactional
+    public Optional<UserModel> changeRole(Long id, UserRole role) {
+        return userRepository.findById(id).map(user -> {
+            user.setRole(role);
+            return userRepository.save(user);
         });
     }
 

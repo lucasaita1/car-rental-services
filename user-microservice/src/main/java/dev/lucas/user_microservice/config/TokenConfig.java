@@ -1,37 +1,42 @@
 package dev.lucas.user_microservice.config;
 
 import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import dev.lucas.user_microservice.entity.UserModel;
-import io.github.cdimascio.dotenv.Dotenv;
-import com.auth0.jwt.algorithms.Algorithm;
-import io.jsonwebtoken.Jwts;
-import lombok.RequiredArgsConstructor;
+import dev.lucas.user_microservice.enums.UserRole;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 
 @Component
-@RequiredArgsConstructor
 public class TokenConfig {
+
+    static final Duration TOKEN_TTL = Duration.ofHours(2);
 
     private final String secret;
 
-    public TokenConfig() {
-        Dotenv dotenv = Dotenv.load();
-        this.secret = dotenv.get("SECRET_TOKEN");
-        if (this.secret == null) {
-            throw new IllegalStateException("SECRET not found in .env file");
+    public TokenConfig(@Value("${SECRET_TOKEN}") String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("SECRET_TOKEN não configurado");
         }
+        this.secret = secret;
     }
 
     public String generateToken(UserModel userModel){
         Algorithm algorithm = Algorithm.HMAC256(secret);
-        return com.auth0.jwt.JWT.create()
+        Instant now = Instant.now();
+        return JWT.create()
                 .withSubject(userModel.getEmail())
                 .withClaim("id", userModel.getId())
                 .withClaim("name", userModel.getName())
+                .withClaim("role", userModel.getRole().name())
+                .withIssuedAt(now)
+                .withExpiresAt(now.plus(TOKEN_TTL))
                 .sign(algorithm);
     }
 
@@ -40,6 +45,7 @@ public class TokenConfig {
             Algorithm algorithm = Algorithm.HMAC256(secret);
 
             DecodedJWT jwt = JWT.require(algorithm)
+                    .withClaimPresence("exp")
                     .build()
                     .verify(token);
 
@@ -47,6 +53,7 @@ public class TokenConfig {
                     .id(jwt.getClaim("id").asLong())
                     .name(jwt.getClaim("name").asString())
                     .email(jwt.getSubject())
+                    .role(parseRole(jwt.getClaim("role").asString()))
                     .build());
 
         } catch (JWTVerificationException exception) {
@@ -54,13 +61,11 @@ public class TokenConfig {
         }
     }
 
-    public String getEmailFromToken(String token) {
-        return Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+    private static UserRole parseRole(String role) {
+        try {
+            return role == null ? UserRole.USER : UserRole.valueOf(role);
+        } catch (IllegalArgumentException e) {
+            return UserRole.USER;
+        }
     }
 }
-
-

@@ -5,6 +5,7 @@ import dev.lucas.user_microservice.dtos.LoginRequest;
 import dev.lucas.user_microservice.dtos.UserCacheDto;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.repository.UserRepository;
+import io.github.cdimascio.dotenv.Dotenv;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +26,9 @@ public class LoginController {
     private final TokenConfig tokenConfig;
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
+
+    private final String carServiceUrl = Dotenv.configure().ignoreIfMissing().load()
+            .get("CAR_SERVICE_URL", "http://localhost:8082");
 
     /**
      * Faz login, gera o JWT e envia os dados do usuário autenticado
@@ -56,8 +60,12 @@ public class LoginController {
             );
 
             // Envia dados pro CarService
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(token);
+            headers.setContentType(MediaType.APPLICATION_JSON);
             try {
-                restTemplate.postForObject("http://localhost:8082/cache/user", cacheDto, Void.class);
+                restTemplate.postForObject(carServiceUrl + "/cache/user",
+                        new HttpEntity<>(cacheDto, headers), Void.class);
             } catch (Exception e) {
                 System.out.println("Falha ao enviar dados para o CarService: " + e.getMessage());
             }
@@ -65,7 +73,8 @@ public class LoginController {
             // Retorna token e dados do usuário
             return ResponseEntity.ok(Map.of(
                     "token", token,
-                    "user", cacheDto
+                    "user", cacheDto,
+                    "role", user.getRole()
             ));
 
         } catch (BadCredentialsException exception) {

@@ -1,11 +1,13 @@
 package dev.lucas.user_microservice.entity;
 
+import dev.lucas.user_microservice.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -28,14 +30,25 @@ public class UserModel implements UserDetails {
     private String cnh;
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    private UserRole role = UserRole.USER;
+
+    public UserRole getRole() {
+        return role == null ? UserRole.USER : role;
+    }
+
+    public boolean isAdmin() {
+        return getRole() == UserRole.ADMIN;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        return List.of(new SimpleGrantedAuthority(getRole().authority()));
     }
 
     @Override
     public String getUsername() {
-        return "";
+        return email;
     }
 
     @Override
