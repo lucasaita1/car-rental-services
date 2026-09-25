@@ -10,19 +10,31 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class UserProducer {
 
-    private final RabbitTemplate rabbitTemplate;
-    private final String routingKey = "register_email";
+    public static final String REGISTER_QUEUE = "register_email";
+    public static final String PASSWORD_RESET_QUEUE = "password_reset_email";
 
+    private final RabbitTemplate rabbitTemplate;
 
     public void sendRegisterEmail(UserModel user) {
       var email = new EmailDto();
       email.setUserId(user.getId());
       email.setEmailTo(user.getEmail());
       email.setSubject("Register Email");
-      // getUsername() é sobrescrito em UserModel para devolver string vazia,
-      // então o nome do cliente vem de getName().
       email.setText("Olá " + user.getName() + ", obrigado por se cadastrar em nosso sistema. Esta é uma mensagem automática de boas-vindas.");
 
-      rabbitTemplate.convertAndSend("", routingKey, email);
+      rabbitTemplate.convertAndSend("", REGISTER_QUEUE, email);
   }
+
+    public void sendPasswordResetEmail(UserModel user, String resetLink) {
+        var email = new EmailDto();
+        email.setUserId(user.getId());
+        email.setEmailTo(user.getEmail());
+        email.setSubject("Redefinição de senha");
+        email.setText("Olá " + user.getName() + ",\n\n"
+                + "Recebemos um pedido para redefinir a sua senha. Use o link abaixo, válido por 30 minutos:\n\n"
+                + resetLink + "\n\n"
+                + "Se não foi você, ignore este e-mail. Sua senha continua a mesma.");
+
+        rabbitTemplate.convertAndSend("", PASSWORD_RESET_QUEUE, email);
+    }
 }

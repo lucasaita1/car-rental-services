@@ -71,10 +71,19 @@ class UserProducerTest {
         ArgumentCaptor<EmailDto> captor = ArgumentCaptor.forClass(EmailDto.class);
         verify(rabbitTemplate).convertAndSend(eq(""), eq("register_email"), captor.capture());
 
-        // Usar getUsername() aqui produziria "Olá ,", porque UserModel sobrescreve
-        // esse método do UserDetails para devolver string vazia.
         assertThat(captor.getValue().getText())
                 .startsWith("Olá Lucas Aita,")
                 .doesNotContain("Olá ,");
+    }
+
+    @Test
+    @DisplayName("E-mail de redefinição vai para a fila própria com o link")
+    void shouldPublishPasswordResetEmail() {
+        userProducer.sendPasswordResetEmail(usuario(), "http://localhost:5173/redefinir-senha?token=abc");
+
+        ArgumentCaptor<EmailDto> captor = ArgumentCaptor.forClass(EmailDto.class);
+        verify(rabbitTemplate).convertAndSend(eq(""), eq("password_reset_email"), captor.capture());
+        assertThat(captor.getValue().getEmailTo()).isEqualTo("lucas@email.com");
+        assertThat(captor.getValue().getText()).contains("http://localhost:5173/redefinir-senha?token=abc");
     }
 }
