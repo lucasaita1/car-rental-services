@@ -32,7 +32,7 @@ class TokenConfigTest {
     @Test
     @DisplayName("Deve gravar o papel ADMIN no token e recuperá-lo na validação")
     void shouldRoundTripAdminRole() {
-        String token = tokenConfig.generateToken(usuario(UserRole.ADMIN));
+        String token = tokenConfig.generateToken(usuario(UserRole.ADMIN), 3);
 
         JWTUserData dados = tokenConfig.verifyToken(token).orElseThrow();
 
@@ -40,12 +40,24 @@ class TokenConfigTest {
         assertThat(dados.isAdmin()).isTrue();
         assertThat(dados.id()).isEqualTo(7L);
         assertThat(dados.email()).isEqualTo("lucas@email.com");
+        assertThat(dados.version()).isEqualTo(3);
+        assertThat(dados.jti()).isNotBlank();
+        assertThat(dados.expiresAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Cada token recebe um jti único")
+    void shouldGenerateUniqueJti() {
+        String a = tokenConfig.generateToken(usuario(UserRole.USER), 0);
+        String b = tokenConfig.generateToken(usuario(UserRole.USER), 0);
+
+        assertThat(JWT.decode(a).getId()).isNotEqualTo(JWT.decode(b).getId());
     }
 
     @Test
     @DisplayName("Usuário comum deve sair com papel USER")
     void shouldRoundTripUserRole() {
-        String token = tokenConfig.generateToken(usuario(UserRole.USER));
+        String token = tokenConfig.generateToken(usuario(UserRole.USER), 0);
 
         assertThat(tokenConfig.verifyToken(token).orElseThrow().isAdmin()).isFalse();
     }
@@ -53,7 +65,7 @@ class TokenConfigTest {
     @Test
     @DisplayName("Token deve ter validade de duas horas")
     void shouldExpireInTwoHours() {
-        String token = tokenConfig.generateToken(usuario(UserRole.USER));
+        String token = tokenConfig.generateToken(usuario(UserRole.USER), 0);
 
         Instant exp = JWT.decode(token).getExpiresAtAsInstant();
         Instant iat = JWT.decode(token).getIssuedAtAsInstant();

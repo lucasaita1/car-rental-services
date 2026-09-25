@@ -3,6 +3,7 @@ package dev.lucas.car_microservice.controller;
 import dev.lucas.car_microservice.config.SecurityConfig;
 import dev.lucas.car_microservice.dto.UserCacheDto;
 import dev.lucas.car_microservice.security.TestJwt;
+import dev.lucas.car_microservice.security.TokenRevocationChecker;
 import dev.lucas.car_microservice.service.CacheService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,9 @@ class CacheControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private TokenRevocationChecker revocationChecker;
 
     @MockitoBean
     private CacheService cacheService;

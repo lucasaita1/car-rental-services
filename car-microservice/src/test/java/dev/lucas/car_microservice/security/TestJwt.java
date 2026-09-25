@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
 public final class TestJwt {
 
@@ -17,10 +18,12 @@ public final class TestJwt {
 
     public static String token(Long id, String role, Instant expiresAt, String secret) {
         return JWT.create()
+                .withJWTId(UUID.randomUUID().toString())
                 .withSubject("user" + id + "@email.com")
                 .withClaim("id", id)
                 .withClaim("name", "Usuário " + id)
                 .withClaim("role", role)
+                .withClaim("ver", 0L)
                 .withExpiresAt(Date.from(expiresAt))
                 .sign(Algorithm.HMAC256(secret));
     }

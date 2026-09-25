@@ -1,10 +1,12 @@
 package dev.lucas.user_microservice.controller;
 
+import dev.lucas.user_microservice.config.JWTUserData;
 import dev.lucas.user_microservice.config.TokenConfig;
 import dev.lucas.user_microservice.dtos.LoginRequest;
 import dev.lucas.user_microservice.dtos.UserCacheDto;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.repository.UserRepository;
+import dev.lucas.user_microservice.security.TokenRevocationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -12,6 +14,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
@@ -26,6 +29,7 @@ public class LoginController {
     private final TokenConfig tokenConfig;
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
+    private final TokenRevocationService tokenRevocationService;
 
     @Value("${CAR_SERVICE_URL:http://localhost:8082}")
     private String carServiceUrl;
@@ -49,7 +53,7 @@ public class LoginController {
             UserModel user = (UserModel) authentication.getPrincipal();
 
             // Gera o JWT
-            String token = tokenConfig.generateToken(user);
+            String token = tokenConfig.generateToken(user, tokenRevocationService.currentVersion(user.getId()));
 
             // Monta DTO para enviar pro CarService
             UserCacheDto cacheDto = new UserCacheDto(
@@ -80,6 +84,12 @@ public class LoginController {
         } catch (BadCredentialsException exception) {
             throw new BadCredentialsException("Email ou senha inválidos!");
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal JWTUserData principal) {
+        tokenRevocationService.revoke(principal.jti(), principal.expiresAt());
+        return ResponseEntity.noContent().build();
     }
 }
 

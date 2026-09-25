@@ -33,7 +33,9 @@ public class JwtService {
                     jwt.getClaim("id").asLong(),
                     jwt.getClaim("name").asString(),
                     jwt.getSubject(),
-                    "ADMIN".equals(role) ? "ADMIN" : "USER"));
+                    "ADMIN".equals(role) ? "ADMIN" : "USER",
+                    jwt.getId(),
+                    jwt.getClaim("ver").isMissing() ? 0 : jwt.getClaim("ver").asLong()));
         } catch (JWTVerificationException e) {
             return Optional.empty();
         }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class TokenConfig {
@@ -27,14 +28,16 @@ public class TokenConfig {
         this.secret = secret;
     }
 
-    public String generateToken(UserModel userModel){
+    public String generateToken(UserModel userModel, long version){
         Algorithm algorithm = Algorithm.HMAC256(secret);
         Instant now = Instant.now();
         return JWT.create()
+                .withJWTId(UUID.randomUUID().toString())
                 .withSubject(userModel.getEmail())
                 .withClaim("id", userModel.getId())
                 .withClaim("name", userModel.getName())
                 .withClaim("role", userModel.getRole().name())
+                .withClaim("ver", version)
                 .withIssuedAt(now)
                 .withExpiresAt(now.plus(TOKEN_TTL))
                 .sign(algorithm);
@@ -54,6 +57,9 @@ public class TokenConfig {
                     .name(jwt.getClaim("name").asString())
                     .email(jwt.getSubject())
                     .role(parseRole(jwt.getClaim("role").asString()))
+                    .jti(jwt.getId())
+                    .version(jwt.getClaim("ver").isMissing() ? 0 : jwt.getClaim("ver").asLong())
+                    .expiresAt(jwt.getExpiresAtAsInstant())
                     .build());
 
         } catch (JWTVerificationException exception) {

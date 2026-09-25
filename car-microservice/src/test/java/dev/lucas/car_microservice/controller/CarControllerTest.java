@@ -5,6 +5,7 @@ import dev.lucas.car_microservice.dto.CarRequestDto;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.security.TestJwt;
+import dev.lucas.car_microservice.security.TokenRevocationChecker;
 import dev.lucas.car_microservice.service.CarService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,9 @@ class CarControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private TokenRevocationChecker revocationChecker;
 
     @MockitoBean
     private CarService carService;
@@ -220,5 +224,19 @@ class CarControllerTest {
                         .header("Origin", "http://site-malicioso.com")
                         .header("Access-Control-Request-Method", "POST"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Token de admin revogado no logout retorna 401")
+    void revokedAdminTokenIsUnauthorized() throws Exception {
+        when(revocationChecker.isRevoked(any())).thenReturn(true);
+
+        mockMvc.perform(post("/cars")
+                        .header("Authorization", TestJwt.admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAR_JSON))
+                .andExpect(status().isUnauthorized());
+
+        verify(carService, never()).save(any());
     }
 }

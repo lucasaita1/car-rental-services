@@ -5,6 +5,7 @@ import dev.lucas.user_microservice.dtos.RoleUpdateRequest;
 import dev.lucas.user_microservice.dtos.UserRequest;
 import dev.lucas.user_microservice.dtos.UserResponse;
 import dev.lucas.user_microservice.entity.UserModel;
+import dev.lucas.user_microservice.security.TokenRevocationService;
 import dev.lucas.user_microservice.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final TokenRevocationService tokenRevocationService;
 
     @PostMapping("/register")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
@@ -68,7 +70,10 @@ public class UserController {
                     "Um administrador não pode alterar o próprio papel.");
         }
         return userService.changeRole(id, request.role())
-                .map(user -> ResponseEntity.ok(toResponse(user)))
+                .map(user -> {
+                    tokenRevocationService.revokeAll(user.getId());
+                    return ResponseEntity.ok(toResponse(user));
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -81,6 +86,7 @@ public class UserController {
             return ResponseEntity.notFound().build();
         }
         userService.deleteById(id);
+        tokenRevocationService.revokeAll(id);
         return ResponseEntity.noContent().build();
     }
 

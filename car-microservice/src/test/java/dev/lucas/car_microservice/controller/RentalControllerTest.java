@@ -4,6 +4,7 @@ import dev.lucas.car_microservice.config.SecurityConfig;
 import dev.lucas.car_microservice.dto.RentalResponseDto;
 import dev.lucas.car_microservice.enums.RentalStatus;
 import dev.lucas.car_microservice.security.TestJwt;
+import dev.lucas.car_microservice.security.TokenRevocationChecker;
 import dev.lucas.car_microservice.service.RentalService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class RentalControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private TokenRevocationChecker revocationChecker;
 
     @MockitoBean
     private RentalService rentalService;

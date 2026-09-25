@@ -24,6 +24,8 @@ class JwtServiceTest {
         assertThat(user.id()).isEqualTo(1L);
         assertThat(user.email()).isEqualTo("user1@email.com");
         assertThat(user.isAdmin()).isTrue();
+        assertThat(user.jti()).isNotBlank();
+        assertThat(user.version()).isZero();
     }
 
     @Test
@@ -62,8 +64,8 @@ class JwtServiceTest {
     @Test
     @DisplayName("canActFor libera o próprio usuário e o ADMIN")
     void canActForRules() {
-        AuthenticatedUser user = new AuthenticatedUser(5L, "Ana", "ana@x.com", "USER");
-        AuthenticatedUser admin = new AuthenticatedUser(1L, "Adm", "adm@x.com", "ADMIN");
+        AuthenticatedUser user = new AuthenticatedUser(5L, "Ana", "ana@x.com", "USER", "jti", 0);
+        AuthenticatedUser admin = new AuthenticatedUser(1L, "Adm", "adm@x.com", "ADMIN", "jti", 0);
 
         assertThat(user.canActFor(5L)).isTrue();
         assertThat(user.canActFor(6L)).isFalse();

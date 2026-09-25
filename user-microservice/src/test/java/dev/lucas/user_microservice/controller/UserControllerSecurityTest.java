@@ -4,6 +4,7 @@ import dev.lucas.user_microservice.config.SecurityConfig;
 import dev.lucas.user_microservice.config.TokenConfig;
 import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.enums.UserRole;
+import dev.lucas.user_microservice.security.TokenRevocationService;
 import dev.lucas.user_microservice.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,9 @@ class UserControllerSecurityTest {
     @MockitoBean
     private UserService userService;
 
+    @MockitoBean
+    private TokenRevocationService tokenRevocationService;
+
     private UserModel usuario(Long id, UserRole role) {
         UserModel user = new UserModel();
         user.setId(id);
@@ -68,7 +72,7 @@ class UserControllerSecurityTest {
     }
 
     private String bearer(Long id, UserRole role) {
-        return "Bearer " + tokenConfig.generateToken(usuario(id, role));
+        return "Bearer " + tokenConfig.generateToken(usuario(id, role), 0);
     }
 
     @Test
@@ -184,6 +188,8 @@ class UserControllerSecurityTest {
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("ADMIN"));
+
+        verify(tokenRevocationService).revokeAll(5L);
     }
 
     @Test
@@ -214,5 +220,25 @@ class UserControllerSecurityTest {
                         .header("Access-Control-Request-Headers", "Authorization"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+    }
+
+    @Test
+    @DisplayName("Token revogado é tratado como anônimo")
+    void revokedTokenIsUnauthorized() throws Exception {
+        when(tokenRevocationService.isRevoked(any(), anyLong(), anyLong())).thenReturn(true);
+
+        mockMvc.perform(get("/users").header("Authorization", bearer(99L, UserRole.ADMIN)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Remover a conta derruba todos os tokens do usuário")
+    void deleteRevokesAllTokens() throws Exception {
+        when(userService.getUserById(1L)).thenReturn(Optional.of(usuario(1L, UserRole.USER)));
+
+        mockMvc.perform(delete("/users/1").header("Authorization", bearer(1L, UserRole.USER)))
+                .andExpect(status().isNoContent());
+
+        verify(tokenRevocationService).revokeAll(1L);
     }
 }

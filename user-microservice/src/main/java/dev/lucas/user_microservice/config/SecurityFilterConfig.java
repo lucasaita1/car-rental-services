@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import dev.lucas.user_microservice.security.TokenRevocationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,6 +21,7 @@ import java.util.Optional;
 public class SecurityFilterConfig extends OncePerRequestFilter {
 
     private final TokenConfig tokenConfig;
+    private final TokenRevocationService tokenRevocationService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -30,7 +32,8 @@ public class SecurityFilterConfig extends OncePerRequestFilter {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             String token = authorizationHeader.substring(7);
 
-            Optional<JWTUserData> jwtUserData = tokenConfig.verifyToken(token);
+            Optional<JWTUserData> jwtUserData = tokenConfig.verifyToken(token)
+                    .filter(data -> !tokenRevocationService.isRevoked(data.jti(), data.id(), data.version()));
             if (jwtUserData.isPresent()) {
                 JWTUserData userData = jwtUserData.get();
                 UsernamePasswordAuthenticationToken authenticationToken =
