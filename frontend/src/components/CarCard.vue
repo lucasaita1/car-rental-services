@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import CarSpecs from './CarSpecs.vue'
 import StatusBadge from './StatusBadge.vue'
 import { assetUrl, carApi } from '@/api/http'
 import type { Car } from '@/api/types'
+import { formatCurrency } from '@/utils/format'
 
 const props = withDefaults(defineProps<{ car: Car; heldByMe?: boolean }>(), { heldByMe: false })
 const emit = defineEmits<{ rent: [car: Car] }>()
@@ -11,7 +13,10 @@ const photo = computed(() => assetUrl(carApi, props.car.photoUrl))
 const reservedByOther = computed(() => props.car.reserved && !props.heldByMe)
 const rentable = computed(
   () =>
-    props.car.status !== 'RENTED' && props.car.status !== 'MAINTENANCE' && !reservedByOther.value,
+    props.car.status !== 'RENTED' &&
+    props.car.status !== 'MAINTENANCE' &&
+    props.car.dailyRate !== null &&
+    !reservedByOther.value,
 )
 const actionLabel = computed(() => {
   if (props.heldByMe) return 'Continuar'
@@ -42,7 +47,13 @@ const actionLabel = computed(() => {
       </div>
       <p class="text-base-content/70">{{ car.year }} · {{ car.color }}</p>
       <p class="font-mono text-sm tracking-wider">{{ car.plate }}</p>
-      <div class="card-actions mt-2 justify-end">
+      <CarSpecs :details="car.details" :limit="3" class="mt-1" />
+      <div class="card-actions mt-3 items-end justify-between">
+        <p v-if="car.dailyRate !== null" class="leading-tight">
+          <span class="text-xl font-extrabold">{{ formatCurrency(car.dailyRate) }}</span>
+          <span class="text-base-content/60 text-sm"> /dia</span>
+        </p>
+        <span v-else class="text-base-content/50 text-sm">Diária a definir</span>
         <button class="btn btn-primary btn-sm" :disabled="!rentable" @click="emit('rent', car)">
           {{ actionLabel }}
         </button>

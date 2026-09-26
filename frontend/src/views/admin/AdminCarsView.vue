@@ -7,6 +7,7 @@ import { deleteCar, listCars } from '@/api/cars'
 import { assetUrl, carApi, errorMessage } from '@/api/http'
 import type { Car } from '@/api/types'
 import { useToastStore } from '@/stores/toast'
+import { formatCurrency } from '@/utils/format'
 
 const toast = useToastStore()
 
@@ -116,13 +117,14 @@ onMounted(load)
             <th>Ano</th>
             <th>Cor</th>
             <th>Placa</th>
+            <th>Diária</th>
             <th>Status</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="cars.length === 0">
-            <td colspan="7" class="py-10 text-center text-base-content/70">
+            <td colspan="8" class="py-10 text-center text-base-content/70">
               Nenhum carro cadastrado.
             </td>
           </tr>
@@ -141,6 +143,10 @@ onMounted(load)
             <td>{{ car.year }}</td>
             <td>{{ car.color }}</td>
             <td class="font-mono">{{ car.plate }}</td>
+            <td>
+              <span v-if="car.dailyRate !== null">{{ formatCurrency(car.dailyRate) }}</span>
+              <span v-else class="badge badge-warning badge-soft">Sem diária</span>
+            </td>
             <td>
               <StatusBadge :status="car.status" />
               <span v-if="car.reserved" class="badge badge-warning badge-soft ml-1"

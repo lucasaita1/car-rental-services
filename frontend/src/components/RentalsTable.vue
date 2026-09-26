@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Rental } from '@/api/types'
-import { formatDate } from '@/utils/format'
+import { formatCurrency, formatDate } from '@/utils/format'
 
 defineProps<{ rentals: Rental[]; showCustomer?: boolean }>()
 const emit = defineEmits<{ return: [rental: Rental] }>()
@@ -16,6 +16,7 @@ const emit = defineEmits<{ return: [rental: Rental] }>()
           <th>Retirada</th>
           <th>Devolução prevista</th>
           <th>Devolvido em</th>
+          <th>Valor</th>
           <th>Situação</th>
           <th></th>
         </tr>
@@ -33,6 +34,14 @@ const emit = defineEmits<{ return: [rental: Rental] }>()
           <td>{{ formatDate(r.rentalDate) }}</td>
           <td>{{ formatDate(r.expectedReturnDate) }}</td>
           <td>{{ formatDate(r.returnDate) }}</td>
+          <td>
+            <template v-if="r.totalAmount !== null">{{ formatCurrency(r.totalAmount) }}</template>
+            <template v-else-if="r.estimatedTotal !== null">
+              {{ formatCurrency(r.estimatedTotal) }}
+              <div class="text-base-content/60 text-xs">previsto</div>
+            </template>
+            <span v-else class="text-base-content/50">—</span>
+          </td>
           <td>
             <span v-if="r.overdue" class="badge badge-error badge-soft">Atrasada</span>
             <span v-else-if="r.status === 'ACTIVE'" class="badge badge-info badge-soft"

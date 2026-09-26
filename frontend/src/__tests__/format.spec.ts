@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   daysUntil,
+  estimateTotal,
+  formatCurrency,
   firstName,
   formatCountdown,
   formatDate,
   greeting,
+  rentalDays,
   todayIso,
 } from '@/utils/format'
 
@@ -44,5 +47,21 @@ describe('format', () => {
   it('firstName pega só o primeiro nome', () => {
     expect(firstName('  Lucas Aita Prates ')).toBe('Lucas')
     expect(firstName('GURIS PUCPR')).toBe('GURIS')
+  })
+
+  it('formatCurrency usa real brasileiro', () => {
+    expect(formatCurrency(1234.5).replace(/\s/g, ' ')).toBe('R$ 1.234,50')
+    expect(formatCurrency(null)).toBe('—')
+  })
+
+  it('rentalDays cobra no mínimo uma diária', () => {
+    expect(rentalDays('2026-09-26', '2026-09-26')).toBe(1)
+    expect(rentalDays('2026-09-26', '2026-09-30')).toBe(4)
+  })
+
+  it('estimateTotal multiplica a diária pelos dias e arredonda centavos', () => {
+    expect(estimateTotal(149.9, '2026-09-26', '2026-09-29')).toBe(449.7)
+    expect(estimateTotal(null, '2026-09-26', '2026-09-29')).toBeNull()
+    expect(estimateTotal(100, '2026-09-26', '')).toBeNull()
   })
 })

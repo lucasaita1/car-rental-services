@@ -2,12 +2,19 @@ export type CarStatus = 'AVAILABLE' | 'RENTED' | 'MAINTENANCE'
 export type RentalStatus = 'ACTIVE' | 'FINISHED'
 export type UserRole = 'USER' | 'ADMIN'
 
+export interface CarDetail {
+  label: string
+  value: string
+}
+
 export interface Car {
   id: number
   model: string
   color: string
   plate: string
   year: number
+  dailyRate: number | null
+  details: CarDetail[] | null
   rentalDate: string | null
   returnDate: string | null
   userId: number | null
@@ -21,6 +28,8 @@ export interface CarPayload {
   color: string
   plate: string
   year: number
+  dailyRate: number | null
+  details: CarDetail[]
   status?: CarStatus
 }
 
@@ -35,6 +44,9 @@ export interface Rental {
   rentalDate: string
   expectedReturnDate: string | null
   returnDate: string | null
+  dailyRate: number | null
+  estimatedTotal: number | null
+  totalAmount: number | null
   status: RentalStatus
   overdue: boolean
 }

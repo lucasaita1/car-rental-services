@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import BaseModal from './BaseModal.vue'
+import CarDetailsEditor from './CarDetailsEditor.vue'
 import PhotoPicker from './PhotoPicker.vue'
 import { createCar, removeCarPhoto, updateCar, uploadCarPhoto } from '@/api/cars'
 import { assetUrl, carApi, errorMessage } from '@/api/http'
-import type { Car, CarPayload, CarStatus } from '@/api/types'
+import type { Car, CarDetail, CarPayload, CarStatus } from '@/api/types'
 import { useToastStore } from '@/stores/toast'
 
 const props = defineProps<{ car: Car | null }>()
@@ -20,6 +21,8 @@ const form = reactive<CarPayload>({
   color: '',
   plate: '',
   year: maxYear - 1,
+  dailyRate: null,
+  details: [],
   status: 'AVAILABLE',
 })
 const saving = ref(false)
@@ -42,6 +45,8 @@ watch(open, (value) => {
     color: props.car?.color ?? '',
     plate: props.car?.plate ?? '',
     year: props.car?.year ?? maxYear - 1,
+    dailyRate: props.car?.dailyRate ?? null,
+    details: (props.car?.details ?? []).map((d) => ({ ...d })),
     status: props.car?.status ?? 'AVAILABLE',
   })
 })
@@ -50,6 +55,10 @@ function validate(): string {
   if (!form.model.trim() || !form.color.trim()) return 'Preencha modelo e cor.'
   if (!platePattern.test(form.plate)) return 'Placa inválida. Use ABC-1234 ou ABC1D23.'
   if (form.year < 1950 || form.year > maxYear) return `Ano deve estar entre 1950 e ${maxYear}.`
+  if (form.dailyRate === null || !(form.dailyRate >= 1)) return 'Informe a diária (mínimo R$ 1,00).'
+  if (form.details.some((d) => !!d.label.trim() !== !!d.value.trim())) {
+    return 'Preencha nome e valor de cada detalhe, ou remova a linha.'
+  }
   return ''
 }
 
@@ -58,8 +67,12 @@ async function submit() {
   error.value = validate()
   if (error.value) return
 
+  const details: CarDetail[] = form.details
+    .map((d) => ({ label: d.label.trim(), value: d.value.trim() }))
+    .filter((d) => d.label && d.value)
   const payload: CarPayload = {
     ...form,
+    details,
     status: isRented.value ? undefined : (form.status as CarStatus),
   }
   saving.value = true
@@ -82,7 +95,7 @@ async function submit() {
 </script>
 
 <template>
-  <BaseModal v-model:open="open" :title="isEdit ? 'Editar carro' : 'Novo carro'">
+  <BaseModal v-model:open="open" wide :title="isEdit ? 'Editar carro' : 'Novo carro'">
     <form id="car-form" class="grid grid-cols-2 gap-3" @submit.prevent="submit">
       <div class="col-span-2">
         <PhotoPicker
@@ -130,6 +143,23 @@ async function submit() {
           <option v-if="isRented" value="RENTED">Alugado</option>
         </select>
       </label>
+      <label class="input col-span-2 w-full">
+        <span class="text-base-content/60">R$</span>
+        <input
+          v-model.number="form.dailyRate"
+          type="number"
+          step="0.01"
+          min="1"
+          class="grow"
+          placeholder="Valor da diária"
+          aria-label="Valor da diária"
+          required
+        />
+        <span class="text-base-content/60 text-sm">por dia</span>
+      </label>
+      <div class="col-span-2">
+        <CarDetailsEditor v-model="form.details" />
+      </div>
       <p v-if="isRented" class="col-span-2 text-sm text-base-content/70">
         Carro com locação ativa: o status só muda após a devolução.
       </p>

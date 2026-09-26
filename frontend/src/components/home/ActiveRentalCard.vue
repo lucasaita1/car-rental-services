@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { assetUrl, carApi } from '@/api/http'
 import type { Car, Rental } from '@/api/types'
-import { daysUntil, formatDate, todayIso } from '@/utils/format'
+import { daysUntil, formatCurrency, formatDate, todayIso } from '@/utils/format'
 
 const props = defineProps<{ rental: Rental; car?: Car }>()
 
@@ -60,7 +60,7 @@ const progress = computed(() => {
         <span class="badge badge-soft" :class="status.badge">{{ status.label }}</span>
       </div>
 
-      <dl class="grid grid-cols-2 gap-4 text-sm">
+      <dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
         <div>
           <dt class="text-base-content/60">Retirada</dt>
           <dd class="font-semibold">{{ formatDate(rental.rentalDate) }}</dd>
@@ -70,6 +70,10 @@ const progress = computed(() => {
           <dd class="font-semibold">
             {{ rental.expectedReturnDate ? formatDate(rental.expectedReturnDate) : 'Em aberto' }}
           </dd>
+        </div>
+        <div v-if="rental.estimatedTotal !== null">
+          <dt class="text-base-content/60">Total previsto</dt>
+          <dd class="font-semibold">{{ formatCurrency(rental.estimatedTotal) }}</dd>
         </div>
       </dl>
 

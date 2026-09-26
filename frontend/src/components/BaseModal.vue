@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 
-defineProps<{ title: string }>()
+withDefaults(defineProps<{ title: string; wide?: boolean }>(), { wide: false })
 const open = defineModel<boolean>('open', { required: true })
 const dialog = ref<HTMLDialogElement>()
 
@@ -18,7 +18,7 @@ onMounted(() => sync(open.value))
 
 <template>
   <dialog ref="dialog" class="modal" @close="open = false">
-    <div class="modal-box">
+    <div class="modal-box" :class="{ 'max-w-2xl': wide }">
       <h3 class="text-lg font-bold">{{ title }}</h3>
       <div class="py-4">
         <slot />

@@ -9,7 +9,7 @@ import { assetUrl, carApi } from '@/api/http'
 import { activeRentals, overdueRentals, rentalsByUser } from '@/api/rentals'
 import type { Car, Rental } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
-import { firstName, formatDate, greeting } from '@/utils/format'
+import { firstName, formatCurrency, formatDate, greeting } from '@/utils/format'
 
 const auth = useAuthStore()
 
@@ -264,10 +264,16 @@ onMounted(async () => {
             <div class="card-body gap-1 p-4">
               <h3 class="font-bold">{{ car.model }}</h3>
               <p class="text-base-content/60 text-sm">{{ car.year }} · {{ car.color }}</p>
-              <p class="text-primary mt-2 flex items-center gap-1 text-sm font-semibold">
-                Reservar
-                <AppIcon name="arrowRight" class="size-4 transition group-hover:translate-x-1" />
-              </p>
+              <div class="mt-2 flex items-end justify-between gap-2">
+                <p class="text-primary flex items-center gap-1 text-sm font-semibold">
+                  Reservar
+                  <AppIcon name="arrowRight" class="size-4 transition group-hover:translate-x-1" />
+                </p>
+                <p v-if="car.dailyRate !== null" class="leading-tight">
+                  <span class="font-extrabold">{{ formatCurrency(car.dailyRate) }}</span>
+                  <span class="text-base-content/60 text-xs">/dia</span>
+                </p>
+              </div>
             </div>
           </RouterLink>
         </div>

@@ -45,3 +45,18 @@ export function greeting(date: Date = new Date()): string {
 export function firstName(fullName: string): string {
   return fullName.trim().split(/\s+/)[0] ?? ''
 }
+
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+export function formatCurrency(value: number | null | undefined): string {
+  return value === null || value === undefined ? '—' : currency.format(value)
+}
+
+export function rentalDays(start: string, end: string): number {
+  return Math.max(1, daysUntil(end, start))
+}
+
+export function estimateTotal(dailyRate: number | null, start: string, end: string): number | null {
+  if (dailyRate === null || !end) return null
+  return Math.round(dailyRate * rentalDays(start, end) * 100) / 100
+}

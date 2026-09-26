@@ -2,12 +2,20 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseModal from './BaseModal.vue'
+import CarSpecs from './CarSpecs.vue'
 import { releaseHold, rentCar } from '@/api/rentals'
 import { assetUrl, carApi, errorMessage } from '@/api/http'
 import type { Car } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
-import { formatCountdown, todayIso } from '@/utils/format'
+import {
+  estimateTotal,
+  formatCountdown,
+  formatCurrency,
+  formatDate,
+  rentalDays,
+  todayIso,
+} from '@/utils/format'
 
 const props = defineProps<{
   car: Car | null
@@ -28,6 +36,12 @@ let rented = false
 let timer: ReturnType<typeof setInterval> | undefined
 
 const photo = computed(() => assetUrl(carApi, props.car?.photoUrl))
+const days = computed(() =>
+  expectedReturnDate.value ? rentalDays(todayIso(), expectedReturnDate.value) : null,
+)
+const total = computed(() =>
+  props.car ? estimateTotal(props.car.dailyRate, todayIso(), expectedReturnDate.value) : null,
+)
 
 function tick() {
   remaining.value = props.expiresAt ? new Date(props.expiresAt).getTime() - Date.now() : 0
@@ -63,10 +77,10 @@ watch(open, (value) => {
 onBeforeUnmount(stopTimer)
 
 async function confirm() {
-  if (!props.car || auth.userId === null) return
+  if (!props.car || auth.userId === null || !expectedReturnDate.value) return
   loading.value = true
   try {
-    const message = await rentCar(props.car.id, auth.userId, expectedReturnDate.value || undefined)
+    const message = await rentCar(props.car.id, auth.userId, expectedReturnDate.value)
 
     if (message.includes('sucesso')) {
       rented = true
@@ -107,17 +121,46 @@ async function confirm() {
           <p class="text-base-content/70 text-sm">{{ car.color }} · Placa {{ car.plate }}</p>
         </div>
       </div>
+      <CarSpecs :details="car.details" />
       <label class="floating-label">
-        <span>Devolução prevista (opcional)</span>
-        <input v-model="expectedReturnDate" type="date" class="input w-full" :min="todayIso()" />
+        <span>Data de devolução</span>
+        <input
+          v-model="expectedReturnDate"
+          type="date"
+          class="input w-full"
+          :min="todayIso()"
+          required
+        />
       </label>
+      <div class="rounded-box border-base-300 space-y-2 border p-4">
+        <div class="flex justify-between text-sm">
+          <span class="text-base-content/70">Diária</span>
+          <span>{{ formatCurrency(car.dailyRate) }}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-base-content/70">Período</span>
+          <span v-if="days"
+            >{{ days }} {{ days === 1 ? 'diária' : 'diárias' }} · até
+            {{ formatDate(expectedReturnDate) }}</span
+          >
+          <span v-else class="text-base-content/50">Escolha a data de devolução</span>
+        </div>
+        <div class="border-base-300 flex items-end justify-between border-t pt-2">
+          <span class="font-semibold">Total previsto</span>
+          <span class="text-2xl font-extrabold">{{ formatCurrency(total) }}</span>
+        </div>
+      </div>
     </div>
 
     <template #actions>
       <button class="btn btn-ghost" :disabled="loading" @click="open = false">Cancelar</button>
-      <button class="btn btn-primary" :disabled="loading || remaining <= 0" @click="confirm">
+      <button
+        class="btn btn-primary"
+        :disabled="loading || remaining <= 0 || !expectedReturnDate"
+        @click="confirm"
+      >
         <span v-if="loading" class="loading loading-spinner loading-sm"></span>
-        Alugar
+        Alugar{{ total !== null ? ` por ${formatCurrency(total)}` : '' }}
       </button>
     </template>
   </BaseModal>

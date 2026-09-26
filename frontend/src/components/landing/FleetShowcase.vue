@@ -4,6 +4,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { assetUrl, carApi } from '@/api/http'
 import type { Car } from '@/api/types'
+import { formatCurrency } from '@/utils/format'
 
 const props = defineProps<{ cars: Car[]; loading: boolean; failed: boolean }>()
 
@@ -86,10 +87,16 @@ const availableCount = computed(() => props.cars.filter(isAvailable).length)
             <StatusBadge v-else :status="car.status" />
           </div>
           <p class="text-base-content/70">{{ car.year }} · {{ car.color }}</p>
-          <p class="text-primary mt-3 flex items-center gap-1 text-sm font-semibold">
-            {{ isAvailable(car) ? 'Reservar este carro' : 'Ver detalhes' }}
-            <AppIcon name="arrowRight" class="size-4 transition group-hover:translate-x-1" />
-          </p>
+          <div class="mt-3 flex items-end justify-between gap-2">
+            <p class="text-primary flex items-center gap-1 text-sm font-semibold">
+              {{ isAvailable(car) ? 'Reservar este carro' : 'Ver detalhes' }}
+              <AppIcon name="arrowRight" class="size-4 transition group-hover:translate-x-1" />
+            </p>
+            <p v-if="car.dailyRate !== null" class="text-right leading-tight">
+              <span class="text-lg font-extrabold">{{ formatCurrency(car.dailyRate) }}</span>
+              <span class="text-base-content/60 text-xs">/dia</span>
+            </p>
+          </div>
         </div>
       </RouterLink>
     </div>
