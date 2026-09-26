@@ -1,6 +1,7 @@
 package dev.lucas.user_microservice.controller;
 
 import dev.lucas.user_microservice.config.JWTUserData;
+import dev.lucas.user_microservice.dtos.AdminUserRequest;
 import dev.lucas.user_microservice.dtos.ProfileUpdateRequest;
 import dev.lucas.user_microservice.dtos.RoleUpdateRequest;
 import dev.lucas.user_microservice.dtos.UserRequest;
@@ -32,6 +33,18 @@ public class UserController {
         UserModel userModel = toModel(request);
         UserModel savedUser = userService.saveUser(userModel);
         return ResponseEntity.status(201).body(UserResponse.from(savedUser));
+    }
+
+    @PostMapping
+    public ResponseEntity<UserResponse> createUserAsAdmin(@Valid @RequestBody AdminUserRequest request) {
+        UserModel user = new UserModel();
+        user.setName(request.name());
+        user.setEmail(request.email());
+        user.setCpf(request.cpf());
+        user.setCnh(request.cnh());
+        user.setPassword(request.password());
+        user.setRole(request.role());
+        return ResponseEntity.status(201).body(UserResponse.from(userService.saveUser(user)));
     }
 
     @GetMapping
@@ -97,7 +110,6 @@ public class UserController {
         }
     }
 
-    // Métodos auxiliares para conversão
     private UserModel toModel(UserRequest request) {
         UserModel user = new UserModel();
         user.setName(request.name());

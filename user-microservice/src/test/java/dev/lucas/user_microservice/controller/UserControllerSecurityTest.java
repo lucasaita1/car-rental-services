@@ -111,6 +111,56 @@ class UserControllerSecurityTest {
     }
 
     @Test
+    @DisplayName("Admin cria outro administrador pela plataforma")
+    void adminCanCreateAdmin() throws Exception {
+        when(userService.saveUser(any())).thenAnswer(i -> {
+            UserModel u = i.getArgument(0);
+            u.setId(11L);
+            return u;
+        });
+
+        mockMvc.perform(post("/users")
+                        .header("Authorization", bearer(99L, UserRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Bia\",\"email\":\" BIA@X.COM \",\"password\":\"senhaForte123\",\"role\":\"ADMIN\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.role").value("ADMIN"))
+                .andExpect(jsonPath("$.email").value("bia@x.com"));
+    }
+
+    @Test
+    @DisplayName("Usuário comum não pode criar contas pela área administrativa")
+    void userCannotCreateUsersAsAdmin() throws Exception {
+        mockMvc.perform(post("/users")
+                        .header("Authorization", bearer(1L, UserRole.USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Bia\",\"email\":\"bia@x.com\",\"password\":\"senhaForte123\",\"role\":\"ADMIN\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).saveUser(any());
+    }
+
+    @Test
+    @DisplayName("Criar usuário pela área administrativa sem token retorna 401")
+    void createUserAsAdminRequiresToken() throws Exception {
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Bia\",\"email\":\"bia@x.com\",\"password\":\"senhaForte123\",\"role\":\"ADMIN\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Criar usuário pela área administrativa exige o papel")
+    void createUserAsAdminRequiresRole() throws Exception {
+        mockMvc.perform(post("/users")
+                        .header("Authorization", bearer(99L, UserRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Bia\",\"email\":\"bia@x.com\",\"password\":\"senhaForte123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.role").exists());
+    }
+
+    @Test
     @DisplayName("Listar usuários sem token retorna 401")
     void listUsersWithoutTokenIsUnauthorized() throws Exception {
         mockMvc.perform(get("/users")).andExpect(status().isUnauthorized());
