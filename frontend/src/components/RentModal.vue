@@ -9,7 +9,11 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatCountdown, todayIso } from '@/utils/format'
 
-const props = defineProps<{ car: Car | null; expiresAt: string | null }>()
+const props = defineProps<{
+  car: Car | null
+  expiresAt: string | null
+  initialReturnDate?: string | null
+}>()
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ rented: []; released: [] }>()
 
@@ -40,7 +44,10 @@ function stopTimer() {
 
 watch(open, (value) => {
   if (value) {
-    expectedReturnDate.value = ''
+    expectedReturnDate.value =
+      props.initialReturnDate && props.initialReturnDate >= todayIso()
+        ? props.initialReturnDate
+        : ''
     rented = false
     tick()
     timer = setInterval(tick, 1000)
@@ -71,7 +78,7 @@ async function confirm() {
       open.value = false
       auth.clearSession()
       toast.warning('Sua sessão de aluguel expirou. Entre novamente.')
-      router.push({ name: 'login', query: { redirect: '/' } })
+      router.push({ name: 'login', query: { redirect: '/carros' } })
     } else {
       toast.warning(message)
     }

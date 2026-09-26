@@ -5,8 +5,19 @@ import { resolveAccess } from './guard'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior(to, _from, saved) {
+    if (saved) return saved
+    if (to.hash) return { el: to.hash, top: 72, behavior: 'smooth' }
+    return { top: 0 }
+  },
   routes: [
-    { path: '/', name: 'catalog', component: () => import('@/views/CatalogView.vue') },
+    {
+      path: '/',
+      name: 'home',
+      component: () => import('@/views/LandingView.vue'),
+      meta: { fullWidth: true },
+    },
+    { path: '/carros', name: 'catalog', component: () => import('@/views/CatalogView.vue') },
     {
       path: '/login',
       name: 'login',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import CarCard from '@/components/CarCard.vue'
 import RentModal from '@/components/RentModal.vue'
 import { listCars } from '@/api/cars'
@@ -13,11 +13,13 @@ import { useToastStore } from '@/stores/toast'
 const auth = useAuthStore()
 const toast = useToastStore()
 const router = useRouter()
+const route = useRoute()
 
 const cars = ref<Car[]>([])
 const loading = ref(true)
 const error = ref('')
-const search = ref('')
+const search = ref(typeof route.query.busca === 'string' ? route.query.busca : '')
+const returnDate = typeof route.query.devolucao === 'string' ? route.query.devolucao : null
 const statusFilter = ref<CarStatus | ''>('')
 
 const rentOpen = ref(false)
@@ -50,7 +52,7 @@ async function load() {
 async function openRent(car: Car) {
   if (!auth.isAuthenticated) {
     toast.info('Entre na sua conta para alugar um carro.')
-    router.push({ name: 'login', query: { redirect: '/' } })
+    router.push({ name: 'login', query: { redirect: route.fullPath } })
     return
   }
   holding.value = car.id
@@ -122,6 +124,7 @@ onMounted(load)
       v-model:open="rentOpen"
       :car="selected"
       :expires-at="expiresAt"
+      :initial-return-date="returnDate"
       @rented="onCheckoutClosed"
       @released="onCheckoutClosed"
     />
