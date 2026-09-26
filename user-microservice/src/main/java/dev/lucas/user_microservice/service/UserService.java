@@ -7,6 +7,8 @@ import dev.lucas.user_microservice.producer.UserProducer;
 import dev.lucas.user_microservice.repository.UserRepository;
 import dev.lucas.user_microservice.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -35,7 +38,11 @@ public class UserService {
         userModel.setPassword(passwordEncoder.encode(userModel.getPassword()));
 
         UserModel savedUser = userRepository.save(userModel);
-        userProducer.sendRegisterEmail(savedUser);
+        try {
+            userProducer.sendRegisterEmail(savedUser);
+        } catch (AmqpException e) {
+            log.warn("E-mail de boas-vindas não enviado para o usuário {}: {}", savedUser.getId(), e.getMessage());
+        }
         return savedUser;
     }
 

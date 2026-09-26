@@ -24,6 +24,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -88,6 +89,17 @@ class UserServiceTest {
         userService.saveUser(novoUsuario);
 
         verify(userProducer).sendRegisterEmail(novoUsuario);
+    }
+
+    @Test
+    @DisplayName("Falha no broker não impede o cadastro")
+    void shouldKeepUserWhenBrokerIsDown() {
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(userRepository.save(any(UserModel.class))).thenAnswer(i -> i.getArgument(0));
+        doThrow(new org.springframework.amqp.AmqpConnectException(new RuntimeException("ACCESS_REFUSED")))
+                .when(userProducer).sendRegisterEmail(any());
+
+        assertThat(userService.saveUser(novoUsuario)).isSameAs(novoUsuario);
     }
 
     @Test
