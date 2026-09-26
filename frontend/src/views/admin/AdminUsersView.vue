@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import UserFormModal from '@/components/UserFormModal.vue'
 import { changeRole, listUsers } from '@/api/users'
 import { errorMessage } from '@/api/http'
 import type { User, UserRole } from '@/api/types'
@@ -14,6 +15,7 @@ const users = ref<User[]>([])
 const loading = ref(true)
 const error = ref('')
 
+const formOpen = ref(false)
 const confirmOpen = ref(false)
 const saving = ref(false)
 const target = ref<User | null>(null)
@@ -61,9 +63,14 @@ onMounted(load)
 
 <template>
   <section class="space-y-6">
-    <div>
-      <h1 class="text-3xl font-bold">Usuários</h1>
-      <p class="text-base-content/70">Promova clientes a administradores ou remova esse acesso.</p>
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold">Usuários</h1>
+        <p class="text-base-content/70">
+          Crie administradores, promova clientes ou remova esse acesso.
+        </p>
+      </div>
+      <button class="btn btn-primary" @click="formOpen = true">Novo usuário</button>
     </div>
 
     <div v-if="loading" class="flex justify-center py-16">
@@ -103,6 +110,8 @@ onMounted(load)
         </tbody>
       </table>
     </div>
+
+    <UserFormModal v-model:open="formOpen" @created="load" />
 
     <ConfirmModal
       v-model:open="confirmOpen"

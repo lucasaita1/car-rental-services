@@ -1,8 +1,13 @@
 import { userApi } from './http'
-import type { ProfilePayload, User, UserRole } from './types'
+import type { AdminUserPayload, ProfilePayload, User, UserRole } from './types'
 
 export async function listUsers(): Promise<User[]> {
   const { data } = await userApi.get<User[]>('/users')
+  return data
+}
+
+export async function createUser(payload: AdminUserPayload): Promise<User> {
+  const { data } = await userApi.post<User>('/users', payload)
   return data
 }
 

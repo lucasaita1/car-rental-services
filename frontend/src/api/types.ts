@@ -49,6 +49,15 @@ export interface User {
   photoUrl: string | null
 }
 
+export interface AdminUserPayload {
+  name: string
+  email: string
+  cpf: string | null
+  cnh: string | null
+  password: string
+  role: UserRole
+}
+
 export interface ProfilePayload {
   name: string
   email: string
