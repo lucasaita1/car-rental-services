@@ -876,6 +876,12 @@ Contribuições são bem-vindas.
 - GitHub: [@lucasaita1](https://github.com/lucasaita1)
 - LinkedIn: [Lucas Aita](https://www.linkedin.com/in/lucas-aita/)
 
+## Contribuintes
+
+**Guilherme Rohrbacher**
+
+- GitHub: [@rohrbacheer](https://github.com/rohrbacheer)
+
 ---
 
 <div align="center">
