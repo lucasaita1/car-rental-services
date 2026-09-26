@@ -25,12 +25,15 @@ const year = new Date().getFullYear()
       <nav class="flex flex-col gap-2">
         <h6 class="footer-title">Aluguel</h6>
         <RouterLink :to="{ name: 'catalog' }" class="link link-hover">Frota</RouterLink>
-        <AnchorLink :to="{ name: 'home', hash: '#como-funciona' }" class="link link-hover">
-          Como funciona
-        </AnchorLink>
-        <AnchorLink :to="{ name: 'home', hash: '#duvidas' }" class="link link-hover">
-          Dúvidas
-        </AnchorLink>
+        <template v-if="!auth.isAuthenticated">
+          <AnchorLink :to="{ name: 'home', hash: '#como-funciona' }" class="link link-hover">
+            Como funciona
+          </AnchorLink>
+          <AnchorLink :to="{ name: 'home', hash: '#duvidas' }" class="link link-hover">
+            Dúvidas
+          </AnchorLink>
+        </template>
+        <RouterLink v-else :to="{ name: 'home' }" class="link link-hover">Início</RouterLink>
       </nav>
       <nav class="flex flex-col gap-2">
         <h6 class="footer-title">Sua conta</h6>

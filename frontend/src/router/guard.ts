@@ -6,6 +6,7 @@ declare module 'vue-router' {
     requiresAdmin?: boolean
     guestOnly?: boolean
     fullWidth?: boolean
+    bare?: boolean
   }
 }
 
@@ -22,10 +23,10 @@ export function resolveAccess(
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.meta.requiresAdmin && !session.isAdmin) {
-    return { name: 'catalog' }
+    return { name: 'home' }
   }
   if (to.meta.guestOnly && session.isAuthenticated) {
-    return { name: 'catalog' }
+    return { name: 'home' }
   }
   return true
 }

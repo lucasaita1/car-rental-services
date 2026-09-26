@@ -7,14 +7,14 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior(to, _from, saved) {
     if (saved) return saved
-    if (to.hash) return { el: to.hash, top: 72, behavior: 'smooth' }
+    if (to.hash) return { el: to.hash, top: 88, behavior: 'smooth' }
     return { top: 0 }
   },
   routes: [
     {
       path: '/',
       name: 'home',
-      component: () => import('@/views/LandingView.vue'),
+      component: () => import('@/views/HomeView.vue'),
       meta: { fullWidth: true },
     },
     { path: '/carros', name: 'catalog', component: () => import('@/views/CatalogView.vue') },
@@ -22,24 +22,25 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
-      meta: { guestOnly: true },
+      meta: { guestOnly: true, fullWidth: true, bare: true },
     },
     {
       path: '/cadastro',
       name: 'register',
       component: () => import('@/views/RegisterView.vue'),
-      meta: { guestOnly: true },
+      meta: { guestOnly: true, fullWidth: true, bare: true },
     },
     {
       path: '/esqueci-senha',
       name: 'forgot-password',
       component: () => import('@/views/ForgotPasswordView.vue'),
-      meta: { guestOnly: true },
+      meta: { guestOnly: true, fullWidth: true, bare: true },
     },
     {
       path: '/redefinir-senha',
       name: 'reset-password',
       component: () => import('@/views/ResetPasswordView.vue'),
+      meta: { fullWidth: true, bare: true },
     },
     {
       path: '/perfil',

@@ -33,7 +33,7 @@ describe('resolveAccess', () => {
   })
 
   it('bloqueia usuário comum em rota de admin', () => {
-    expect(resolveAccess(route({ requiresAdmin: true }), user)).toEqual({ name: 'catalog' })
+    expect(resolveAccess(route({ requiresAdmin: true }), user)).toEqual({ name: 'home' })
   })
 
   it('libera rota de admin para admin', () => {
@@ -41,7 +41,7 @@ describe('resolveAccess', () => {
   })
 
   it('tira quem já está logado das telas de login e cadastro', () => {
-    expect(resolveAccess(route({ guestOnly: true }), user)).toEqual({ name: 'catalog' })
+    expect(resolveAccess(route({ guestOnly: true }), user)).toEqual({ name: 'home' })
     expect(resolveAccess(route({ guestOnly: true }), anonymous)).toBe(true)
   })
 })

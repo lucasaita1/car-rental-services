@@ -1,21 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import HeroCar from './HeroCar.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import CarSearchForm from '@/components/CarSearchForm.vue'
 import { brand } from '@/brand'
-import { buildCatalogQuery } from '@/utils/catalogQuery'
-import { todayIso } from '@/utils/format'
 
 defineProps<{ availableCount: number | null }>()
-
-const router = useRouter()
-const search = ref('')
-const returnDate = ref('')
-
-function submit() {
-  router.push({ name: 'catalog', query: buildCatalogQuery(search.value, returnDate.value) })
-}
 </script>
 
 <template>
@@ -40,43 +29,7 @@ function submit() {
           carro fica garantido só para você.
         </p>
 
-        <form class="bg-base-100 text-base-content rounded-box shadow-2xl" @submit.prevent="submit">
-          <label class="border-base-300 flex items-center gap-3 border-b px-5 py-4">
-            <AppIcon name="search" class="text-primary size-5 shrink-0" />
-            <span class="flex-1">
-              <span class="text-base-content/60 block text-xs font-semibold uppercase"
-                >Qual carro você procura?</span
-              >
-              <input
-                v-model="search"
-                type="search"
-                placeholder="Ex.: Civic, Onix, T-Cross"
-                class="w-full bg-transparent text-base font-medium outline-none"
-              />
-            </span>
-          </label>
-          <div class="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
-            <label class="flex flex-1 items-center gap-3 px-2">
-              <AppIcon name="calendar" class="text-primary size-5 shrink-0" />
-              <span class="flex-1">
-                <span class="text-base-content/60 block text-xs font-semibold uppercase"
-                  >Devolver até (opcional)</span
-                >
-                <input
-                  v-model="returnDate"
-                  type="date"
-                  :min="todayIso()"
-                  class="w-full bg-transparent font-medium outline-none"
-                  :class="{ 'text-base-content/50': !returnDate }"
-                />
-              </span>
-            </label>
-            <button class="btn btn-primary btn-lg">
-              Ver carros disponíveis
-              <AppIcon name="arrowRight" class="size-5" />
-            </button>
-          </div>
-        </form>
+        <CarSearchForm />
 
         <div class="text-neutral-content/70 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <span v-if="availableCount !== null" class="flex items-center gap-2">

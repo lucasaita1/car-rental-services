@@ -28,3 +28,20 @@ export function formatCountdown(ms: number): string {
   const seconds = total % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
+
+export function daysUntil(isoDate: string, today: string = todayIso()): number {
+  const [y1, m1, d1] = isoDate.split('-').map(Number)
+  const [y2, m2, d2] = today.split('-').map(Number)
+  return Math.round((Date.UTC(y1!, m1! - 1, d1) - Date.UTC(y2!, m2! - 1, d2)) / 86_400_000)
+}
+
+export function greeting(date: Date = new Date()): string {
+  const hour = date.getHours()
+  if (hour >= 5 && hour < 12) return 'Bom dia'
+  if (hour >= 12 && hour < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
+
+export function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] ?? ''
+}
