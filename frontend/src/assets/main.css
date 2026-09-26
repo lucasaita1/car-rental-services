@@ -1,7 +1,103 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/plus-jakarta-sans';
 
 @plugin 'daisyui' {
-  themes:
-    corporate --default,
-    business --prefersdark;
+  themes: false;
+}
+
+@plugin 'daisyui/theme' {
+  name: 'volante';
+  default: true;
+  color-scheme: light;
+  --color-base-100: oklch(99.4% 0.003 270);
+  --color-base-200: oklch(96.8% 0.007 270);
+  --color-base-300: oklch(91.5% 0.013 270);
+  --color-base-content: oklch(23% 0.035 268);
+  --color-primary: oklch(53.8% 0.242 269.4);
+  --color-primary-content: oklch(97.3% 0.006 264.5);
+  --color-secondary: oklch(29.2% 0.109 269.8);
+  --color-secondary-content: oklch(97.3% 0.006 264.5);
+  --color-accent: oklch(81% 0.16 76);
+  --color-accent-content: oklch(26% 0.06 60);
+  --color-neutral: oklch(26% 0.1 269.8);
+  --color-neutral-content: oklch(97.3% 0.006 264.5);
+  --color-info: oklch(66% 0.14 236);
+  --color-info-content: oklch(98% 0.01 236);
+  --color-success: oklch(65% 0.15 158);
+  --color-success-content: oklch(98% 0.01 158);
+  --color-warning: oklch(79% 0.16 74);
+  --color-warning-content: oklch(27% 0.06 60);
+  --color-error: oklch(60% 0.2 25);
+  --color-error-content: oklch(98% 0.01 25);
+  --radius-selector: 2rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin 'daisyui/theme' {
+  name: 'volante-dark';
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: oklch(21% 0.03 270);
+  --color-base-200: oklch(17.5% 0.028 270);
+  --color-base-300: oklch(27% 0.035 270);
+  --color-base-content: oklch(94% 0.012 270);
+  --color-primary: oklch(66% 0.19 269.4);
+  --color-primary-content: oklch(15% 0.04 276);
+  --color-secondary: oklch(33% 0.1 269.8);
+  --color-secondary-content: oklch(96% 0.01 266);
+  --color-accent: oklch(83% 0.16 78);
+  --color-accent-content: oklch(24% 0.06 60);
+  --color-neutral: oklch(17% 0.07 269.8);
+  --color-neutral-content: oklch(94% 0.01 270);
+  --color-info: oklch(70% 0.13 236);
+  --color-info-content: oklch(18% 0.04 236);
+  --color-success: oklch(70% 0.15 158);
+  --color-success-content: oklch(18% 0.04 158);
+  --color-warning: oklch(81% 0.16 74);
+  --color-warning-content: oklch(24% 0.06 60);
+  --color-error: oklch(67% 0.19 25);
+  --color-error-content: oklch(18% 0.05 25);
+  --radius-selector: 2rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes road-dash {
+  to {
+    background-position-x: -96px;
+  }
+}
+
+.road-line {
+  background-image: linear-gradient(90deg, var(--color-accent) 0 48px, transparent 48px 96px);
+  background-size: 96px 100%;
+  animation: road-dash 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .road-line {
+    animation: none;
+  }
 }
