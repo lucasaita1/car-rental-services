@@ -2,6 +2,7 @@ package dev.lucas.car_microservice.service;
 
 import dev.lucas.car_microservice.dto.CarRequestDto;
 import dev.lucas.car_microservice.entity.CarModel;
+import dev.lucas.car_microservice.mapper.CarMapper;
 import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.enums.RentalStatus;
 import dev.lucas.car_microservice.repository.CarRepository;
@@ -52,6 +53,8 @@ public class CarService {
         car.setColor(InputSanitizer.text(dto.getColor()));
         car.setPlate(InputSanitizer.plate(dto.getPlate()));
         car.setYear(dto.getYear());
+        car.setDailyRate(dto.getDailyRate());
+        car.setDetails(CarMapper.sanitizeDetails(dto.getDetails()));
         if (dto.getStatus() != null) {
             car.setStatus(dto.getStatus());
         }

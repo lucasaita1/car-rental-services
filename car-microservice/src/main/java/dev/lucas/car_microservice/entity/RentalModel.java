@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -63,6 +64,18 @@ public class RentalModel {
 
     /** Data em que o veículo voltou de fato. Nula enquanto a locação está ativa. */
     private LocalDate returnDate;
+
+    /** Diária vigente no momento da locação; mudanças posteriores no carro não a afetam. */
+    @Column(precision = 10, scale = 2)
+    private BigDecimal dailyRate;
+
+    /** Valor previsto pela data combinada de devolução. */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal estimatedTotal;
+
+    /** Valor final, calculado na devolução pelos dias efetivamente usados. */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal totalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

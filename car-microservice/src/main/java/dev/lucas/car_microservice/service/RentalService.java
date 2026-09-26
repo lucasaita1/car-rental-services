@@ -54,6 +54,10 @@ public class RentalService {
             return "Este carro está em manutenção e não pode ser alugado.";
         }
 
+        if (car.getDailyRate() == null) {
+            return "Este carro ainda não tem valor de diária definido.";
+        }
+
         // Quem decide se o veículo está ocupado é a tabela de locações. A coluna
         // status do carro é só um espelho e pode ficar dessincronizada.
         if (rentalRepository.existsByCarIdAndStatus(carId, RentalStatus.ACTIVE)) {
@@ -91,6 +95,8 @@ public class RentalService {
         rental.setCarPlate(car.getPlate());
         rental.setRentalDate(hoje);
         rental.setExpectedReturnDate(expectedReturnDate);
+        rental.setDailyRate(car.getDailyRate());
+        rental.setEstimatedTotal(RentalPricing.total(car.getDailyRate(), hoje, expectedReturnDate));
         rental.setStatus(RentalStatus.ACTIVE);
         rentalRepository.save(rental);
 
@@ -135,6 +141,7 @@ public class RentalService {
         // Encerra a locação sem apagá-la: a linha permanece como histórico.
         RentalModel rental = optionalRental.get();
         rental.setReturnDate(LocalDate.now());
+        rental.setTotalAmount(RentalPricing.total(rental.getDailyRate(), rental.getRentalDate(), rental.getReturnDate()));
         rental.setStatus(RentalStatus.FINISHED);
         rentalRepository.save(rental);
 
@@ -154,6 +161,9 @@ public class RentalService {
 
         if (car.getStatus() == CarStatus.MAINTENANCE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Este carro está em manutenção.");
+        }
+        if (car.getDailyRate() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este carro ainda não tem valor de diária definido.");
         }
         if (rentalRepository.existsByCarIdAndStatus(carId, RentalStatus.ACTIVE)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Este carro já está alugado.");

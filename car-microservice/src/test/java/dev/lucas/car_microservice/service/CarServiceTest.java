@@ -54,6 +54,7 @@ class CarServiceTest {
                 "Preto",
                 "ABC-1D23",
                 2024,
+                new java.math.BigDecimal("150.00"), null,
                 null,
                 null,
                 CarStatus.AVAILABLE,
@@ -101,6 +102,7 @@ class CarServiceTest {
     void shouldFindAll() {
         CarModel outro = new CarModel(
                 2L, "Onix", "Branco", "XYZ-9Z99", 2022,
+                new java.math.BigDecimal("150.00"), null,
                 LocalDate.now(), null, CarStatus.RENTED, null, null
         );
         when(carRepository.findAll()).thenReturn(List.of(car, outro));

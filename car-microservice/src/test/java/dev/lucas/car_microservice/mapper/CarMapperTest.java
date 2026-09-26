@@ -2,6 +2,7 @@ package dev.lucas.car_microservice.mapper;
 
 import dev.lucas.car_microservice.dto.CarRequestDto;
 import dev.lucas.car_microservice.dto.CarResponseDto;
+import dev.lucas.car_microservice.entity.CarDetail;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.enums.CarStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,30 @@ class CarMapperTest {
 
     private static final LocalDate ALUGUEL = LocalDate.of(2026, 3, 10);
     private static final LocalDate DEVOLUCAO = LocalDate.of(2026, 3, 20);
+
+    @Nested
+    @DisplayName("Detalhes do veículo")
+    class Details {
+
+        @Test
+        @DisplayName("Sanitiza os detalhes e descarta os vazios mantendo a ordem")
+        void shouldSanitizeDetails() {
+            java.util.List<CarDetail> clean = CarMapper.sanitizeDetails(java.util.List.of(
+                    new CarDetail(" <b>Motor</b> ", " V8 "),
+                    new CarDetail("Cor interna", "  "),
+                    new CarDetail("Câmbio", "Automático")));
+
+            assertThat(clean).containsExactly(new CarDetail("Motor", "V8"), new CarDetail("Câmbio", "Automático"));
+        }
+
+        @Test
+        @DisplayName("Lista vazia vira nula para o front não exibir a seção")
+        void shouldTurnEmptyIntoNull() {
+            assertThat(CarMapper.sanitizeDetails(java.util.List.of(new CarDetail(" ", "x")))).isNull();
+            assertThat(CarMapper.sanitizeDetails(java.util.List.of())).isNull();
+            assertThat(CarMapper.sanitizeDetails(null)).isNull();
+        }
+    }
 
     @Nested
     @DisplayName("toEntity: request da API -> entidade")
@@ -114,6 +139,7 @@ class CarMapperTest {
         void shouldMapEveryEntityField() {
             CarModel entity = new CarModel(
                     7L, "Civic", "Preto", "ABC-1D23", 2024,
+                    new java.math.BigDecimal("150.00"), null,
                     ALUGUEL, DEVOLUCAO, CarStatus.RENTED, 42L, null
             );
 

@@ -45,7 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CarControllerTest {
 
     private static final String CAR_JSON =
-            "{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"ABC-1D23\",\"year\":2024}";
+            "{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"ABC-1D23\",\"year\":2024,"
+                    + "\"dailyRate\":189.90,\"details\":[{\"label\":\"Câmbio\",\"value\":\"Automático\"}]}";
 
     @Autowired
     private MockMvc mockMvc;
@@ -69,6 +70,8 @@ class CarControllerTest {
                 "Preto",
                 "ABC-1D23",
                 2024,
+                new java.math.BigDecimal("150.00"),
+                null,
                 null,
                 null,
                 CarStatus.AVAILABLE,
@@ -132,7 +135,7 @@ class CarControllerTest {
         mockMvc.perform(put("/cars/1")
                         .header("Authorization", TestJwt.admin())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"model\":\"Civic\",\"color\":\"Branco\",\"plate\":\"ABC-1D23\",\"year\":2024}"))
+                        .content("{\"model\":\"Civic\",\"color\":\"Branco\",\"plate\":\"ABC-1D23\",\"year\":2024,\"dailyRate\":150}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.color").value("Branco"));
     }
@@ -247,12 +250,38 @@ class CarControllerTest {
     }
 
     @Test
+    @DisplayName("Cadastro sem diária retorna 400")
+    void missingDailyRateIsRejected() throws Exception {
+        mockMvc.perform(post("/cars")
+                        .header("Authorization", TestJwt.admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"ABC-1D23\",\"year\":2024}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.dailyRate").value("Informe o valor da diária."));
+
+        verify(carService, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Detalhe sem valor retorna 400")
+    void blankDetailIsRejected() throws Exception {
+        mockMvc.perform(post("/cars")
+                        .header("Authorization", TestJwt.admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"ABC-1D23\",\"year\":2024,"
+                                + "\"dailyRate\":150,\"details\":[{\"label\":\"Motor\",\"value\":\"\"}]}"))
+                .andExpect(status().isBadRequest());
+
+        verify(carService, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Placa inválida retorna 400 com a mensagem do campo")
     void invalidPlateIsRejected() throws Exception {
         mockMvc.perform(post("/cars")
                         .header("Authorization", TestJwt.admin())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"PLACA1\",\"year\":2024}"))
+                        .content("{\"model\":\"Civic\",\"color\":\"Preto\",\"plate\":\"PLACA1\",\"year\":2024,\"dailyRate\":150}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Placa inválida. Use ABC-1234 ou ABC1D23."));
 

@@ -79,6 +79,7 @@ class RentalServiceTest {
                 "Preto",
                 "ABC-1D23",
                 2024,
+                new java.math.BigDecimal("150.00"), null,
                 null,
                 null,
                 CarStatus.AVAILABLE,
@@ -368,6 +369,64 @@ class RentalServiceTest {
         // anterior perdia, porque zerava a coluna no carro.
         assertThat(encerrada.getRentalDate()).isEqualTo(LocalDate.now().minusDays(3));
         verify(rentalRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Locação guarda a diária vigente e o total previsto pelo prazo")
+    void shouldSnapshotDailyRateAndEstimate() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+
+        rentalService.rentCar(1L, 42L, LocalDate.now().plusDays(4));
+
+        ArgumentCaptor<RentalModel> captor = ArgumentCaptor.forClass(RentalModel.class);
+        verify(rentalRepository).save(captor.capture());
+        assertThat(captor.getValue().getDailyRate()).isEqualByComparingTo("150.00");
+        assertThat(captor.getValue().getEstimatedTotal()).isEqualByComparingTo("600.00");
+    }
+
+    @Test
+    @DisplayName("Sem prazo combinado, o total previsto fica em aberto")
+    void shouldLeaveEstimateEmptyWithoutDeadline() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+
+        rentalService.rentCar(1L, 42L);
+
+        ArgumentCaptor<RentalModel> captor = ArgumentCaptor.forClass(RentalModel.class);
+        verify(rentalRepository).save(captor.capture());
+        assertThat(captor.getValue().getEstimatedTotal()).isNull();
+    }
+
+    @Test
+    @DisplayName("Não deve alugar carro sem diária definida")
+    void shouldNotRentCarWithoutDailyRate() {
+        availableCar.setDailyRate(null);
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+
+        String result = rentalService.rentCar(1L, 42L);
+
+        assertThat(result).contains("diária");
+        verify(rentalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Devolução cobra os dias efetivamente usados com a diária da locação")
+    void shouldChargeActualDaysOnReturn() {
+        availableCar.setStatus(CarStatus.RENTED);
+        availableCar.setDailyRate(new java.math.BigDecimal("999.00"));
+        RentalModel ativa = locacaoAtiva();
+        ativa.setDailyRate(new java.math.BigDecimal("120.50"));
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(rentalRepository.findByCarIdAndStatus(1L, RentalStatus.ACTIVE)).thenReturn(Optional.of(ativa));
+
+        rentalService.returnCar(1L);
+
+        ArgumentCaptor<RentalModel> captor = ArgumentCaptor.forClass(RentalModel.class);
+        verify(rentalRepository).save(captor.capture());
+        assertThat(captor.getValue().getTotalAmount()).isEqualByComparingTo("361.50");
     }
 
     @Test

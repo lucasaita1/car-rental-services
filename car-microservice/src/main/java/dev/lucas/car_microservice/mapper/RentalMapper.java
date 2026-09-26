@@ -22,6 +22,9 @@ public class RentalMapper {
                 .rentalDate(rental.getRentalDate())
                 .expectedReturnDate(rental.getExpectedReturnDate())
                 .returnDate(rental.getReturnDate())
+                .dailyRate(rental.getDailyRate())
+                .estimatedTotal(rental.getEstimatedTotal())
+                .totalAmount(rental.getTotalAmount())
                 .status(rental.getStatus())
                 .overdue(rental.isOverdue(reference))
                 .build();
