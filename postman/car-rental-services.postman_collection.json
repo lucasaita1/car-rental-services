@@ -643,7 +643,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"model\": \"Honda Civic\",\n  \"color\": \"Preto\",\n  \"plate\": \"ABC1D23\",\n  \"year\": 2023,\n  \"rentalDate\": null,\n  \"returnDate\": null,\n  \"userId\": null\n}"
+              "raw": "{\n  \"model\": \"Honda Civic\",\n  \"color\": \"Preto\",\n  \"plate\": \"ABC1D23\",\n  \"year\": 2023,\n  \"dailyRate\": 239.90,\n  \"details\": [\n    { \"label\": \"Câmbio\", \"value\": \"CVT\" },\n    { \"label\": \"Motor\", \"value\": \"2.0\" }\n  ]\n}"
             },
             "url": {
               "raw": "{{carUrl}}/cars",
@@ -674,7 +674,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"model\": \"Honda Civic\",\n  \"color\": \"Branco\",\n  \"plate\": \"ABC1D23\",\n  \"year\": 2024,\n  \"status\": \"MAINTENANCE\"\n}"
+              "raw": "{\n  \"model\": \"Honda Civic\",\n  \"color\": \"Branco\",\n  \"plate\": \"ABC1D23\",\n  \"year\": 2024,\n  \"dailyRate\": 249.90,\n  \"details\": null,\n  \"status\": \"MAINTENANCE\"\n}"
             },
             "url": {
               "raw": "{{carUrl}}/cars/{{carId}}",

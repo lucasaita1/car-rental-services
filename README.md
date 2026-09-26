@@ -521,23 +521,32 @@ curl http://localhost:8081/users \
 
 ```bash
 curl -X POST http://localhost:8082/cars \
+  -H "Authorization: Bearer $TOKEN_ADMIN" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "Honda Civic",
     "color": "Preto",
     "plate": "ABC1D23",
     "year": 2023,
-    "rentalDate": null,
-    "returnDate": null,
-    "userId": null
+    "dailyRate": 239.90,
+    "details": [
+      { "label": "Câmbio", "value": "CVT" },
+      { "label": "Motor", "value": "2.0" },
+      { "label": "Potência", "value": "155 cv" }
+    ]
   }'
 ```
+
+`dailyRate` é obrigatório (mínimo R$ 1,00, duas casas decimais). `details` é opcional: uma lista de pares rótulo e valor, livre para o administrador (câmbio, motor, potência, 0 km etc.), com até 20 itens. Linhas em branco são descartadas, e uma lista vazia é gravada como nula; nesse caso o front não exibe a seção.
 
 ### Alugar um veículo
 
 ```bash
-curl -X POST http://localhost:8082/rental/rent/1/user/1
+curl -X POST "http://localhost:8082/rental/rent/1/user/1?expectedReturnDate=2026-10-03" \
+  -H "Authorization: Bearer $TOKEN"
 ```
+
+O valor é a diária multiplicada pelos dias corridos, com mínimo de uma diária. Na locação ficam gravados a diária vigente (mudanças posteriores no carro não afetam locações em andamento) e o total previsto pela data combinada. Na devolução, o total final é recalculado pelos dias efetivamente usados. Carro sem diária definida não pode ser reservado nem alugado.
 
 Os endpoints de aluguel retornam texto puro, não JSON:
 
@@ -597,9 +606,11 @@ Sequência sugerida para um teste ponta a ponta:
 | `color` | VARCHAR | |
 | `plate` | VARCHAR | |
 | `year` | INT | |
+| `daily_rate` | DECIMAL(10,2) | valor da diária |
+| `details` | JSON | lista de `{label, value}`, opcional |
 | `rental_date` | DATE | |
 | `return_date` | DATE | |
-| `status` | VARCHAR | AVAILABLE, RENTED ou MAINTENANCE |
+| `status` | TINYINT | ordinal de AVAILABLE, RENTED ou MAINTENANCE |
 | `user_id` | BIGINT | cliente que alugou |
 
 ### Locações (MySQL, porta 3307)
@@ -616,13 +627,33 @@ Sequência sugerida para um teste ponta a ponta:
 | `rental_date` | DATE | início da locação |
 | `expected_return_date` | DATE | prazo combinado, opcional |
 | `return_date` | DATE | devolução efetiva, nula enquanto ativa |
+| `daily_rate` | DECIMAL(10,2) | diária vigente no momento da locação |
+| `estimated_total` | DECIMAL(12,2) | total previsto pela data combinada |
+| `total_amount` | DECIMAL(12,2) | total final, calculado na devolução |
 | `status` | VARCHAR | `ACTIVE` ou `FINISHED` |
 
 Os dados de cliente e veículo são gravados como cópia, e não como referência. O cliente vive em outro microsserviço, com banco próprio, então não há join possível: sem a cópia, um relatório histórico precisaria chamar o user-microservice para cada linha. O veículo pode ser removido por `DELETE /cars/{id}`, o que deixaria o histórico sem saber qual carro foi alugado.
 
 As colunas de aluguel em `car_model` (`rental_date`, `return_date`, `user_id`) passam a ser um espelho da locação corrente, mantido para consulta rápida de estoque. Em caso de divergência, `TB_RENTALS` prevalece.
 
-Ambos os serviços usam `spring.jpa.hibernate.ddl-auto=update`, então o Hibernate cria e evolui as tabelas automaticamente.
+### Migrations (Flyway)
+
+O schema dos dois bancos MySQL é versionado com Flyway. O Hibernate não cria nem altera tabelas: roda com `ddl-auto=validate` e impede a subida se alguma entidade não bater com o banco.
+
+```
+user-microservice/src/main/resources/db/migration/
+  V1__create_users_and_seeds.sql
+car-microservice/src/main/resources/db/migration/
+  V1__create_cars_and_rentals.sql
+  V2__add_car_pricing_and_details.sql
+```
+
+- As migrations rodam sozinhas na subida de cada serviço, e o histórico fica na tabela `flyway_schema_history`.
+- Toda mudança de schema entra num arquivo novo, `V{n}__descricao.sql`. Um arquivo já aplicado nunca é editado: o Flyway compara checksums e recusa a subida.
+- Bancos criados antes do Flyway, quando o Hibernate gerava as tabelas, são marcados na versão 1 (`baseline-on-migrate`), e só as versões seguintes são aplicadas. Um banco vazio recebe todas, a partir da V1.
+- Se um banco local antigo estiver diferente da V1 (por exemplo, sem colunas mais novas), o caminho mais simples é recriá-lo vazio e deixar o Flyway montar tudo.
+
+O MongoDB do email-microservice não tem schema fixo e fica fora do Flyway.
 
 ### E-mails (MongoDB)
 
