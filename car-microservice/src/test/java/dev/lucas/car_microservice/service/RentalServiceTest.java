@@ -1,6 +1,7 @@
 package dev.lucas.car_microservice.service;
 
 import dev.lucas.car_microservice.dto.RentalResponseDto;
+import dev.lucas.car_microservice.dto.UserCacheDto;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.enums.CarStatus;
 import dev.lucas.car_microservice.entity.RentalModel;
@@ -35,6 +36,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RentalServiceTest {
+
+    private static final LocalDate PRAZO = LocalDate.now().plusDays(3);
 
     @Mock
     private CarRepository carRepository;
@@ -97,10 +100,11 @@ class RentalServiceTest {
         userData.put("name", "Lucas");
         userData.put("email", "lucas@email.com");
         userData.put("cpf", "12345678900");
+        userData.put("cnhDocument", true);
 
         when(valueOperations.get("user:42")).thenReturn(userData);
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("sucesso");
 
@@ -119,7 +123,7 @@ class RentalServiceTest {
         // A ocupação é decidida pela locação ativa, não mais pela coluna do carro.
         when(rentalRepository.existsByCarIdAndStatus(1L, RentalStatus.ACTIVE)).thenReturn(true);
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("já está alugado");
         verify(carRepository, never()).save(any());
@@ -135,7 +139,7 @@ class RentalServiceTest {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(rentalRepository.existsByCarIdAndStatus(1L, RentalStatus.ACTIVE)).thenReturn(true);
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("já está alugado");
         verify(rentalRepository, never()).save(any());
@@ -148,7 +152,7 @@ class RentalServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("user:42")).thenReturn(null);
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("não encontrado no cache");
         verify(carRepository, never()).save(any());
@@ -161,7 +165,7 @@ class RentalServiceTest {
 
         // Fixa o contrato: alugar carro inexistente estoura, e não devolve mensagem.
         // Diferente do returnCar, que devolve texto. A assimetria é intencional no serviço.
-        assertThatThrownBy(() -> rentalService.rentCar(99L, 42L))
+        assertThatThrownBy(() -> rentalService.rentCar(99L, 42L, PRAZO))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Carro não encontrado.");
 
@@ -224,9 +228,9 @@ class RentalServiceTest {
     void shouldReadCacheUnderAgreedKey() {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("user:7")).thenReturn(Map.of("name", "Ana", "email", "ana@x.com", "cpf", "1"));
+        when(valueOperations.get("user:7")).thenReturn(Map.of("name", "Ana", "email", "ana@x.com", "cpf", "1", "cnhDocument", true));
 
-        rentalService.rentCar(1L, 7L);
+        rentalService.rentCar(1L, 7L, PRAZO);
 
         // Se o formato da chave divergir do que o CacheService grava no login,
         // todo aluguel passa a falhar por "usuário não encontrado no cache".
@@ -239,7 +243,7 @@ class RentalServiceTest {
         availableCar.setStatus(CarStatus.MAINTENANCE);
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("em manutenção");
         // A recusa acontece antes de consultar o cache, então nada é persistido.
@@ -251,9 +255,9 @@ class RentalServiceTest {
     void shouldPersistRenterId() {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1", "cnhDocument", true));
 
-        rentalService.rentCar(1L, 42L);
+        rentalService.rentCar(1L, 42L, PRAZO);
 
         ArgumentCaptor<CarModel> captor = ArgumentCaptor.forClass(CarModel.class);
         verify(carRepository).save(captor.capture());
@@ -288,7 +292,7 @@ class RentalServiceTest {
         availableCar.setReturnDate(LocalDate.of(2020, 1, 1));
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1", "cnhDocument", true));
 
         rentalService.rentCar(1L, 42L, prazo);
 
@@ -310,7 +314,7 @@ class RentalServiceTest {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("user:42"))
-                .thenReturn(Map.of("name", "Lucas", "email", "lucas@x.com", "cpf", "12345678900"));
+                .thenReturn(Map.of("name", "Lucas", "email", "lucas@x.com", "cpf", "12345678900", "cnhDocument", true));
 
         rentalService.rentCar(1L, 42L, LocalDate.now().plusDays(5));
 
@@ -332,9 +336,9 @@ class RentalServiceTest {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("user:42"))
-                .thenReturn(Map.of("name", "Lucas", "email", "lucas@x.com", "cpf", "12345678900"));
+                .thenReturn(Map.of("name", "Lucas", "email", "lucas@x.com", "cpf", "12345678900", "cnhDocument", true));
 
-        rentalService.rentCar(1L, 42L);
+        rentalService.rentCar(1L, 42L, PRAZO);
 
         ArgumentCaptor<RentalModel> captor = ArgumentCaptor.forClass(RentalModel.class);
         verify(rentalRepository).save(captor.capture());
@@ -376,7 +380,7 @@ class RentalServiceTest {
     void shouldSnapshotDailyRateAndEstimate() {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1", "cnhDocument", true));
 
         rentalService.rentCar(1L, 42L, LocalDate.now().plusDays(4));
 
@@ -387,26 +391,12 @@ class RentalServiceTest {
     }
 
     @Test
-    @DisplayName("Sem prazo combinado, o total previsto fica em aberto")
-    void shouldLeaveEstimateEmptyWithoutDeadline() {
-        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
-
-        rentalService.rentCar(1L, 42L);
-
-        ArgumentCaptor<RentalModel> captor = ArgumentCaptor.forClass(RentalModel.class);
-        verify(rentalRepository).save(captor.capture());
-        assertThat(captor.getValue().getEstimatedTotal()).isNull();
-    }
-
-    @Test
     @DisplayName("Não deve alugar carro sem diária definida")
     void shouldNotRentCarWithoutDailyRate() {
         availableCar.setDailyRate(null);
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("diária");
         verify(rentalRepository, never()).save(any());
@@ -442,19 +432,58 @@ class RentalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve aceitar locação sem prazo combinado")
-    void shouldAllowRentalWithoutDeadline() {
+    @DisplayName("Não deve alugar sem data prevista de devolução")
+    void shouldRequireExpectedReturnDate() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+
+        String result = rentalService.rentCar(1L, 42L, null);
+
+        assertThat(result).isEqualTo("Informe a data prevista de devolução.");
+        verify(rentalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Não deve alugar sem o PDF da CNH enviado")
+    void shouldRequireCnhDocument() {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
+
+        assertThat(result).isEqualTo(RentalService.CNH_REQUIRED);
+        verify(rentalRepository, never()).save(any());
+        verify(reservationService).release(1L, 42L);
+    }
+
+    @Test
+    @DisplayName("Lê o cache gravado como UserCacheDto, que é o formato real do Redis")
+    void shouldReadTypedUserCache() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42"))
+                .thenReturn(new UserCacheDto("42", "Lucas", "12345678900", "lucas@x.com", true));
+
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("sucesso");
-
         ArgumentCaptor<RentalModel> captor = ArgumentCaptor.forClass(RentalModel.class);
         verify(rentalRepository).save(captor.capture());
-        assertThat(captor.getValue().getExpectedReturnDate()).isNull();
+        assertThat(captor.getValue().getUserName()).isEqualTo("Lucas");
+        assertThat(captor.getValue().getUserCpf()).isEqualTo("12345678900");
+    }
+
+    @Test
+    @DisplayName("Reserva no checkout é recusada para quem ainda não enviou a CNH")
+    void holdRequiresCnhDocument() {
+        when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(new UserCacheDto("42", "Lucas", "1", "l@x.com", false));
+
+        assertThatThrownBy(() -> rentalService.holdCar(1L, 42L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("CNH");
+        verify(reservationService, never()).hold(any(), any());
     }
 
     @Test
@@ -464,7 +493,7 @@ class RentalServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("user:42")).thenReturn(null);
 
-        rentalService.rentCar(1L, 42L);
+        rentalService.rentCar(1L, 42L, PRAZO);
 
         verify(rentalRepository, never()).save(any());
     }
@@ -531,7 +560,7 @@ class RentalServiceTest {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(reservationService.hold(1L, 42L)).thenReturn(Optional.of(9L));
 
-        String result = rentalService.rentCar(1L, 42L);
+        String result = rentalService.rentCar(1L, 42L, PRAZO);
 
         assertThat(result).contains("reservado por outro cliente");
         verify(rentalRepository, never()).save(any());
@@ -542,9 +571,9 @@ class RentalServiceTest {
     void shouldReleaseHoldAfterRent() {
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1"));
+        when(valueOperations.get("user:42")).thenReturn(Map.of("name", "Lucas", "email", "l@x.com", "cpf", "1", "cnhDocument", true));
 
-        rentalService.rentCar(1L, 42L);
+        rentalService.rentCar(1L, 42L, PRAZO);
 
         verify(reservationService).release(1L, 42L);
     }
@@ -556,7 +585,7 @@ class RentalServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("user:42")).thenReturn(null);
 
-        rentalService.rentCar(1L, 42L);
+        rentalService.rentCar(1L, 42L, PRAZO);
 
         verify(reservationService).release(1L, 42L);
     }
@@ -567,6 +596,8 @@ class RentalServiceTest {
         java.time.Instant prazo = java.time.Instant.now().plusSeconds(600);
         when(carRepository.findById(1L)).thenReturn(Optional.of(availableCar));
         when(reservationService.expiresAt(1L)).thenReturn(prazo);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("user:42")).thenReturn(new UserCacheDto("42", "Lucas", "1", "l@x.com", true));
 
         assertThat(rentalService.holdCar(1L, 42L).expiresAt()).isEqualTo(prazo);
     }
@@ -585,6 +616,7 @@ class RentalServiceTest {
                 .hasMessageContaining("alugado");
 
         when(rentalRepository.existsByCarIdAndStatus(1L, RentalStatus.ACTIVE)).thenReturn(false);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(reservationService.hold(1L, 42L)).thenReturn(Optional.of(9L));
         assertThatThrownBy(() -> rentalService.holdCar(1L, 42L)).isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Outro cliente");

@@ -4,6 +4,7 @@ package dev.lucas.car_microservice.service;
 import dev.lucas.car_microservice.dto.HoldResponse;
 import dev.lucas.car_microservice.dto.RentalEmailDto;
 import dev.lucas.car_microservice.dto.RentalResponseDto;
+import dev.lucas.car_microservice.dto.UserCacheDto;
 import dev.lucas.car_microservice.entity.CarModel;
 import dev.lucas.car_microservice.entity.RentalModel;
 import dev.lucas.car_microservice.enums.CarStatus;
@@ -40,10 +41,7 @@ public class RentalService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final ReservationService reservationService;
 
-    @Transactional
-    public String rentCar(Long carId, Long userId) {
-        return rentCar(carId, userId, null);
-    }
+    static final String CNH_REQUIRED = "Envie o PDF da sua CNH no perfil antes de alugar.";
 
     @Transactional
     public String rentCar(Long carId, Long userId, LocalDate expectedReturnDate) {
@@ -66,7 +64,11 @@ public class RentalService {
 
         LocalDate hoje = LocalDate.now();
 
-        if (expectedReturnDate != null && expectedReturnDate.isBefore(hoje)) {
+        if (expectedReturnDate == null) {
+            return "Informe a data prevista de devolução.";
+        }
+
+        if (expectedReturnDate.isBefore(hoje)) {
             return "A data prevista de devolução não pode ser anterior a hoje.";
         }
 
@@ -74,23 +76,27 @@ public class RentalService {
             return "Este carro está reservado por outro cliente no momento.";
         }
 
-        String userKey = "user:" + userId;
-        Object userCache = redisTemplate.opsForValue().get(userKey);
+        Optional<UserCacheDto> cached = cachedUser(userId);
 
-        if (userCache == null) {
+        if (cached.isEmpty()) {
             reservationService.release(carId, userId);
             return "Usuário não encontrado no cache. É necessário fazer login novamente.";
         }
 
-        Map<String, Object> userData = (Map<String, Object>) userCache;
+        UserCacheDto userData = cached.get();
+
+        if (!userData.isCnhDocument()) {
+            reservationService.release(carId, userId);
+            return CNH_REQUIRED;
+        }
 
         // Registro durável da locação.
         RentalModel rental = new RentalModel();
         rental.setCarId(car.getId());
         rental.setUserId(userId);
-        rental.setUserName((String) userData.get("name"));
-        rental.setUserEmail((String) userData.get("email"));
-        rental.setUserCpf((String) userData.get("cpf"));
+        rental.setUserName(userData.getName());
+        rental.setUserEmail(userData.getEmail());
+        rental.setUserCpf(userData.getCpf());
         rental.setCarModel(car.getModel());
         rental.setCarPlate(car.getPlate());
         rental.setRentalDate(hoje);
@@ -168,6 +174,9 @@ public class RentalService {
         if (rentalRepository.existsByCarIdAndStatus(carId, RentalStatus.ACTIVE)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Este carro já está alugado.");
         }
+        if (cachedUser(userId).filter(user -> !user.isCnhDocument()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, CNH_REQUIRED);
+        }
         if (reservationService.hold(carId, userId).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Outro cliente está finalizando a locação deste carro. Tente novamente em alguns minutos.");
@@ -202,6 +211,26 @@ public class RentalService {
     /** Locações ativas cujo prazo combinado já venceu. */
     public List<RentalResponseDto> findOverdueRentals() {
         return toDtoList(rentalRepository.findOverdue(LocalDate.now()));
+    }
+
+    private Optional<UserCacheDto> cachedUser(Long userId) {
+        Object value = redisTemplate.opsForValue().get("user:" + userId);
+        if (value instanceof UserCacheDto user) {
+            return Optional.of(user);
+        }
+        if (value instanceof Map<?, ?> map) {
+            return Optional.of(new UserCacheDto(
+                    asText(map.get("id")),
+                    asText(map.get("name")),
+                    asText(map.get("cpf")),
+                    asText(map.get("email")),
+                    Boolean.TRUE.equals(map.get("cnhDocument"))));
+        }
+        return Optional.empty();
+    }
+
+    private static String asText(Object value) {
+        return value == null ? null : value.toString();
     }
 
     private List<RentalResponseDto> toDtoList(List<RentalModel> rentals) {

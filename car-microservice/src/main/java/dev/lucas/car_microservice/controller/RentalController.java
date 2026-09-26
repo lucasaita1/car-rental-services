@@ -34,7 +34,7 @@ public class RentalController {
     public String rentCar(
             @PathVariable Long carId,
             @PathVariable Long userId,
-            @RequestParam(required = false)
+            @RequestParam
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expectedReturnDate,
             @AuthenticationPrincipal AuthenticatedUser principal) {
         requireCanActFor(principal, userId);

@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -23,6 +24,14 @@ public class ApiExceptionHandler {
         String message = errors.values().stream().findFirst().orElse("Dados inválidos.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("status", 400, "message", message, "errors", errors));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingParam(MissingServletRequestParameterException ex) {
+        String message = "expectedReturnDate".equals(ex.getParameterName())
+                ? "Informe a data prevista de devolução."
+                : "Parâmetro obrigatório ausente: " + ex.getParameterName() + ".";
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("status", 400, "message", message));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

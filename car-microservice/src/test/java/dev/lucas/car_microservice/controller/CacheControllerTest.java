@@ -75,7 +75,7 @@ class CacheControllerTest {
     @Test
     @DisplayName("Usuário lê o próprio cache e não o de outro")
     void userReadsOnlyOwnCache() throws Exception {
-        when(cacheService.getUser("5")).thenReturn(new UserCacheDto("5", "Ana", "123", "ana@x.com"));
+        when(cacheService.getUser("5")).thenReturn(new UserCacheDto("5", "Ana", "123", "ana@x.com", true));
 
         mockMvc.perform(get("/cache/user/5").header("Authorization", TestJwt.user(5L)))
                 .andExpect(status().isOk())
@@ -87,7 +87,7 @@ class CacheControllerTest {
     @Test
     @DisplayName("ADMIN lê o cache de qualquer usuário")
     void adminReadsAnyCache() throws Exception {
-        when(cacheService.getUser("5")).thenReturn(new UserCacheDto("5", "Ana", "123", "ana@x.com"));
+        when(cacheService.getUser("5")).thenReturn(new UserCacheDto("5", "Ana", "123", "ana@x.com", true));
 
         mockMvc.perform(get("/cache/user/5").header("Authorization", TestJwt.admin()))
                 .andExpect(status().isOk());

@@ -63,9 +63,11 @@ class RentalControllerTest {
     @Test
     @DisplayName("USER aluga para si mesmo")
     void userCanRentForSelf() throws Exception {
-        when(rentalService.rentCar(1L, 5L, null)).thenReturn("Carro alugado com sucesso!");
+        when(rentalService.rentCar(1L, 5L, LocalDate.now().plusDays(2))).thenReturn("Carro alugado com sucesso!");
 
-        mockMvc.perform(post("/rental/rent/1/user/5").header("Authorization", TestJwt.user(5L)))
+        mockMvc.perform(post("/rental/rent/1/user/5")
+                        .param("expectedReturnDate", LocalDate.now().plusDays(2).toString())
+                        .header("Authorization", TestJwt.user(5L)))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Carro alugado com sucesso!"));
     }
@@ -73,7 +75,9 @@ class RentalControllerTest {
     @Test
     @DisplayName("USER não aluga em nome de outro usuário")
     void userCannotRentForSomeoneElse() throws Exception {
-        mockMvc.perform(post("/rental/rent/1/user/6").header("Authorization", TestJwt.user(5L)))
+        mockMvc.perform(post("/rental/rent/1/user/6")
+                        .param("expectedReturnDate", LocalDate.now().plusDays(2).toString())
+                        .header("Authorization", TestJwt.user(5L)))
                 .andExpect(status().isForbidden());
 
         verify(rentalService, never()).rentCar(anyLong(), anyLong(), any());
@@ -82,10 +86,22 @@ class RentalControllerTest {
     @Test
     @DisplayName("ADMIN aluga em nome de qualquer cliente")
     void adminCanRentForAnyone() throws Exception {
-        when(rentalService.rentCar(1L, 6L, null)).thenReturn("Carro alugado com sucesso!");
+        when(rentalService.rentCar(1L, 6L, LocalDate.now().plusDays(2))).thenReturn("Carro alugado com sucesso!");
 
-        mockMvc.perform(post("/rental/rent/1/user/6").header("Authorization", TestJwt.admin()))
+        mockMvc.perform(post("/rental/rent/1/user/6")
+                        .param("expectedReturnDate", LocalDate.now().plusDays(2).toString())
+                        .header("Authorization", TestJwt.admin()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Alugar sem data de devolução retorna 400")
+    void rentRequiresExpectedReturnDate() throws Exception {
+        mockMvc.perform(post("/rental/rent/1/user/5").header("Authorization", TestJwt.user(5L)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Informe a data prevista de devolução."));
+
+        verify(rentalService, never()).rentCar(anyLong(), anyLong(), any());
     }
 
     @Test

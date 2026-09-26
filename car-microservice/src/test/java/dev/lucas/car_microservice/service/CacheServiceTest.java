@@ -38,7 +38,7 @@ class CacheServiceTest {
     private CacheService cacheService;
 
     private UserCacheDto usuario() {
-        return new UserCacheDto("42", "Lucas", "12345678900", "lucas@email.com");
+        return new UserCacheDto("42", "Lucas", "12345678900", "lucas@email.com", true);
     }
 
     @Test
@@ -105,8 +105,8 @@ class CacheServiceTest {
     void shouldNamespaceKeysPerUser() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        cacheService.saveUser(new UserCacheDto("1", "Ana", "1", "ana@x.com"), Duration.ofMinutes(1));
-        cacheService.saveUser(new UserCacheDto("2", "Bia", "2", "bia@x.com"), Duration.ofMinutes(1));
+        cacheService.saveUser(new UserCacheDto("1", "Ana", "1", "ana@x.com", true), Duration.ofMinutes(1));
+        cacheService.saveUser(new UserCacheDto("2", "Bia", "2", "bia@x.com", true), Duration.ofMinutes(1));
 
         verify(valueOperations).set(eq("user:1"), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Duration.class));
         verify(valueOperations).set(eq("user:2"), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Duration.class));
