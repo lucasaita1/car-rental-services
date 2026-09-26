@@ -9,6 +9,7 @@ import dev.lucas.user_microservice.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +25,9 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
+    public static final String PHOTO_FOLDER = "users";
+    public static final String CNH_FOLDER = "documents/cnh";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -89,7 +94,7 @@ public class UserService {
     @Transactional
     public UserModel updatePhoto(Long id, MultipartFile file) {
         UserModel user = findExisting(id);
-        String newPath = storage.storeImage(file, "users");
+        String newPath = storage.storeImage(file, PHOTO_FOLDER);
         String oldPath = user.getPhotoPath();
         user.setPhotoPath(newPath);
         UserModel saved = userRepository.save(user);
@@ -105,8 +110,31 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    @Transactional
+    public UserModel updateCnhDocument(Long id, MultipartFile file) {
+        UserModel user = findExisting(id);
+        String newPath = storage.storePdf(file, CNH_FOLDER);
+        String oldPath = user.getCnhDocumentPath();
+        user.setCnhDocumentPath(newPath);
+        user.setCnhDocumentUploadedAt(Instant.now());
+        UserModel saved = userRepository.save(user);
+        storage.delete(oldPath);
+        return saved;
+    }
+
+    public Resource cnhDocument(Long id) {
+        UserModel user = findExisting(id);
+        if (!user.hasCnhDocument()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "CNH ainda não enviada.");
+        }
+        return storage.load(user.getCnhDocumentPath());
+    }
+
     public void deleteById(Long id){
-        userRepository.findById(id).ifPresent(user -> storage.delete(user.getPhotoPath()));
+        userRepository.findById(id).ifPresent(user -> {
+            storage.delete(user.getPhotoPath());
+            storage.delete(user.getCnhDocumentPath());
+        });
         userRepository.deleteById(id);
     }
 

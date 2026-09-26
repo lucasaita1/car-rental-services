@@ -13,4 +13,5 @@ public class UserCacheDto {
     private String name;
     private String cpf;
     private String email;
+    private boolean cnhDocument;
 }

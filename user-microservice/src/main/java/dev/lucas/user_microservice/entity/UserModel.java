@@ -10,6 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -30,12 +31,18 @@ public class UserModel implements UserDetails {
     private String cnh;
     private String password;
     private String photoPath;
+    private String cnhDocumentPath;
+    private Instant cnhDocumentUploadedAt;
 
     @Enumerated(EnumType.STRING)
     private UserRole role = UserRole.USER;
 
     public UserRole getRole() {
         return role == null ? UserRole.USER : role;
+    }
+
+    public boolean hasCnhDocument() {
+        return cnhDocumentPath != null;
     }
 
     public boolean isAdmin() {

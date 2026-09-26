@@ -1,5 +1,6 @@
 package dev.lucas.user_microservice.controller;
 
+import dev.lucas.user_microservice.client.CarCacheClient;
 import dev.lucas.user_microservice.config.JWTUserData;
 import dev.lucas.user_microservice.config.TokenConfig;
 import dev.lucas.user_microservice.dtos.LoginRequest;
@@ -8,7 +9,6 @@ import dev.lucas.user_microservice.entity.UserModel;
 import dev.lucas.user_microservice.repository.UserRepository;
 import dev.lucas.user_microservice.security.TokenRevocationService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,7 +16,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
@@ -28,11 +27,8 @@ public class LoginController {
     private final AuthenticationManager authenticationManager;
     private final TokenConfig tokenConfig;
     private final UserRepository userRepository;
-    private final RestTemplate restTemplate;
+    private final CarCacheClient carCacheClient;
     private final TokenRevocationService tokenRevocationService;
-
-    @Value("${CAR_SERVICE_URL:http://localhost:8082}")
-    private String carServiceUrl;
 
     /**
      * Faz login, gera o JWT e envia os dados do usuário autenticado
@@ -55,24 +51,8 @@ public class LoginController {
             // Gera o JWT
             String token = tokenConfig.generateToken(user, tokenRevocationService.currentVersion(user.getId()));
 
-            // Monta DTO para enviar pro CarService
-            UserCacheDto cacheDto = new UserCacheDto(
-                    user.getId().toString(),
-                    user.getName(),
-                    user.getCpf(),
-                    user.getEmail()
-            );
-
-            // Envia dados pro CarService
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(token);
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            try {
-                restTemplate.postForObject(carServiceUrl + "/cache/user",
-                        new HttpEntity<>(cacheDto, headers), Void.class);
-            } catch (Exception e) {
-                System.out.println("Falha ao enviar dados para o CarService: " + e.getMessage());
-            }
+            UserCacheDto cacheDto = CarCacheClient.toCacheDto(user);
+            carCacheClient.publish(user, token);
 
             // Retorna token e dados do usuário
             return ResponseEntity.ok(Map.of(

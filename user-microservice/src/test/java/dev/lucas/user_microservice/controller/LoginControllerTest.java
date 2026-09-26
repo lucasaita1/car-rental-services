@@ -1,5 +1,6 @@
 package dev.lucas.user_microservice.controller;
 
+import dev.lucas.user_microservice.client.CarCacheClient;
 import dev.lucas.user_microservice.config.SecurityConfig;
 import dev.lucas.user_microservice.config.TokenConfig;
 import dev.lucas.user_microservice.entity.UserModel;
@@ -34,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(LoginController.class)
-@Import({SecurityConfig.class, LoginControllerTest.TestTokens.class})
+@Import({SecurityConfig.class, CarCacheClient.class, LoginControllerTest.TestTokens.class})
 class LoginControllerTest {
 
     @TestConfiguration

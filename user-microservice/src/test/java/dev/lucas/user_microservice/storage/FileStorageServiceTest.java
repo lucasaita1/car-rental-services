@@ -17,6 +17,7 @@ class FileStorageServiceTest {
 
     static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0, 1};
     static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 0x0D};
+    static final byte[] PDF = "%PDF-1.7\n%âãÏÓ\n".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
     static final byte[] WEBP = {'R', 'I', 'F', 'F', 0x24, 0, 0, 0, 'W', 'E', 'B', 'P'};
 
     @TempDir
@@ -108,5 +109,42 @@ class FileStorageServiceTest {
     void buildsPublicUrl() {
         assertThat(FileStorageService.publicUrl("users/a.jpg")).isEqualTo("/files/users/a.jpg");
         assertThat(FileStorageService.publicUrl(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("Salva PDF pela assinatura %PDF- em pasta aninhada")
+    void storesPdfByMagicBytes() throws Exception {
+        String path = storage.storePdf(new MockMultipartFile("file", "cnh.png", "image/png", PDF), "documents/cnh");
+
+        assertThat(path).matches("documents/cnh/[0-9a-f-]{36}\\.pdf");
+        assertThat(Files.readAllBytes(tempDir.resolve(path))).isEqualTo(PDF);
+        assertThat(storage.load(path).exists()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Recusa arquivo que não é PDF, mesmo com nome .pdf")
+    void rejectsFakePdf() {
+        assertThatThrownBy(() -> storage.storePdf(
+                new MockMultipartFile("file", "cnh.pdf", "application/pdf", JPEG), "documents/cnh"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("PDF");
+    }
+
+    @Test
+    @DisplayName("Apaga o PDF antigo guardado em pasta aninhada")
+    void deletesStoredPdf() throws Exception {
+        String path = storage.storePdf(new MockMultipartFile("file", "a.pdf", "application/pdf", PDF), "documents/cnh");
+
+        storage.delete(path);
+
+        assertThat(Files.exists(tempDir.resolve(path))).isFalse();
+    }
+
+    @Test
+    @DisplayName("Não carrega caminhos fora do padrão gravado")
+    void refusesTraversalOnLoad() {
+        assertThatThrownBy(() -> storage.load("../../etc/passwd"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("404");
     }
 }

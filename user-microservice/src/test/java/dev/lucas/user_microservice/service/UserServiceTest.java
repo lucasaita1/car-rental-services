@@ -263,6 +263,48 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Novo PDF da CNH substitui o anterior e apaga o arquivo antigo")
+    void shouldReplaceCnhDocument() {
+        UserModel existente = new UserModel();
+        existente.setCnhDocumentPath("documents/cnh/antiga.pdf");
+        MockMultipartFile file = new MockMultipartFile("file", "cnh.pdf", "application/pdf", new byte[]{1});
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(storage.storePdf(file, UserService.CNH_FOLDER)).thenReturn("documents/cnh/nova.pdf");
+        when(userRepository.save(any(UserModel.class))).thenAnswer(i -> i.getArgument(0));
+
+        UserModel salvo = userService.updateCnhDocument(1L, file);
+
+        assertThat(salvo.getCnhDocumentPath()).isEqualTo("documents/cnh/nova.pdf");
+        assertThat(salvo.getCnhDocumentUploadedAt()).isNotNull();
+        assertThat(salvo.hasCnhDocument()).isTrue();
+        verify(storage).delete("documents/cnh/antiga.pdf");
+    }
+
+    @Test
+    @DisplayName("Baixar a CNH de quem ainda não enviou retorna 404")
+    void shouldReturnNotFoundWithoutCnhDocument() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(new UserModel()));
+
+        assertThatThrownBy(() -> userService.cnhDocument(1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("404");
+    }
+
+    @Test
+    @DisplayName("Remover a conta apaga também o PDF da CNH")
+    void shouldDeleteCnhDocumentWithAccount() {
+        UserModel existente = new UserModel();
+        existente.setPhotoPath("users/foto.jpg");
+        existente.setCnhDocumentPath("documents/cnh/doc.pdf");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existente));
+
+        userService.deleteById(1L);
+
+        verify(storage).delete("users/foto.jpg");
+        verify(storage).delete("documents/cnh/doc.pdf");
+    }
+
+    @Test
     @DisplayName("Remover a foto de perfil apaga o arquivo")
     void shouldRemoveProfilePhoto() {
         UserModel existente = new UserModel();
