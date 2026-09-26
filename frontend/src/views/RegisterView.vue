@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import CnhDocumentField from '@/components/CnhDocumentField.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
 import AuthShell from '@/components/auth/AuthShell.vue'
 import { errorMessage } from '@/api/http'
-import { uploadMyPhoto } from '@/api/users'
+import { uploadMyCnhDocument, uploadMyPhoto } from '@/api/users'
 import type { RegisterPayload } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -16,6 +17,7 @@ const router = useRouter()
 const form = reactive<RegisterPayload>({ name: '', email: '', cpf: '', cnh: '', password: '' })
 const confirmPassword = ref('')
 const photo = ref<File | null>(null)
+const cnhDocument = ref<File | null>(null)
 const loading = ref(false)
 const error = ref('')
 
@@ -24,6 +26,7 @@ function validate(): string {
   if (form.password !== confirmPassword.value) return 'As senhas não conferem.'
   if (!/^\d{11}$/.test(form.cpf)) return 'CPF deve ter 11 dígitos, sem pontuação.'
   if (!/^\d{11}$/.test(form.cnh)) return 'CNH deve ter 11 dígitos.'
+  if (!cnhDocument.value) return 'Anexe a sua CNH em PDF.'
   return ''
 }
 
@@ -39,6 +42,11 @@ async function submit() {
       } catch (e) {
         toast.warning(errorMessage(e, 'Conta criada, mas a foto não foi enviada.'))
       }
+    }
+    try {
+      auth.profile = await uploadMyCnhDocument(cnhDocument.value!)
+    } catch (e) {
+      toast.warning(errorMessage(e, 'Conta criada, mas a CNH não foi enviada. Envie pelo perfil.'))
     }
     toast.success('Conta criada! Você já está conectado.')
     router.push({ name: 'home' })
@@ -103,6 +111,7 @@ async function submit() {
           />
         </label>
       </div>
+      <CnhDocumentField required @select="cnhDocument = $event" />
       <label class="floating-label">
         <span>Senha</span>
         <input

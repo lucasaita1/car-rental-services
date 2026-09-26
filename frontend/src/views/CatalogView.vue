@@ -55,6 +55,11 @@ async function openRent(car: Car) {
     router.push({ name: 'login', query: { redirect: route.fullPath } })
     return
   }
+  if (auth.profile && !auth.profile.cnhDocument) {
+    toast.warning('Envie o PDF da sua CNH no perfil antes de alugar.')
+    router.push({ name: 'profile', hash: '#cnh' })
+    return
+  }
   holding.value = car.id
   try {
     const hold = await holdCar(car.id)

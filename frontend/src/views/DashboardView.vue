@@ -30,7 +30,10 @@ const featured = computed(() =>
 )
 const active = computed(() => myRentals.value.filter((r) => r.status === 'ACTIVE'))
 const finishedCount = computed(() => myRentals.value.filter((r) => r.status === 'FINISHED').length)
-const profileIncomplete = computed(() => !!auth.profile && (!auth.profile.cpf || !auth.profile.cnh))
+const missingCnhDocument = computed(() => !!auth.profile && !auth.profile.cnhDocument)
+const profileIncomplete = computed(
+  () => !!auth.profile && (!auth.profile.cpf || !auth.profile.cnh || !auth.profile.cnhDocument),
+)
 
 const headline = computed(() => {
   if (loading.value) return 'Carregando o seu resumo…'
@@ -215,7 +218,16 @@ onMounted(async () => {
             class="alert alert-warning alert-soft items-start"
           >
             <AppIcon name="alert" class="size-5" />
-            <span> Cadastre seu CPF e CNH no perfil para agilizar a retirada do carro. </span>
+            <span>
+              {{
+                missingCnhDocument
+                  ? 'Envie o PDF da sua CNH no perfil. Sem ele não é possível alugar.'
+                  : 'Cadastre seu CPF e o número da CNH no perfil para agilizar a retirada.'
+              }}
+              <RouterLink :to="{ name: 'profile', hash: '#cnh' }" class="link font-semibold"
+                >Ir para o perfil</RouterLink
+              >
+            </span>
           </div>
         </aside>
       </div>

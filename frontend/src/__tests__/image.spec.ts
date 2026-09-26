@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_IMAGE_BYTES, validateImage } from '@/utils/image'
+import { MAX_IMAGE_BYTES, validateImage, validatePdf } from '@/utils/image'
 
 function fakeFile(type: string, size: number): File {
   const file = new File(['x'], 'foto', { type })
@@ -21,5 +21,16 @@ describe('validateImage', () => {
 
   it('recusa arquivos acima de 5 MB', () => {
     expect(validateImage(fakeFile('image/jpeg', MAX_IMAGE_BYTES + 1))).toContain('5 MB')
+  })
+})
+
+describe('validatePdf', () => {
+  it('aceita PDF até 5 MB', () => {
+    expect(validatePdf(fakeFile('application/pdf', MAX_IMAGE_BYTES))).toBe('')
+  })
+
+  it('recusa imagem e arquivo grande', () => {
+    expect(validatePdf(fakeFile('image/png', 10))).toContain('PDF')
+    expect(validatePdf(fakeFile('application/pdf', MAX_IMAGE_BYTES + 1))).toContain('5 MB')
   })
 })

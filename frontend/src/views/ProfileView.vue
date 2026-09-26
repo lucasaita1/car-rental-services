@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import CnhDocumentField from '@/components/CnhDocumentField.vue'
 import PhotoPicker from '@/components/PhotoPicker.vue'
 import { assetUrl, errorMessage, userApi } from '@/api/http'
-import { changePassword, removeMyPhoto, updateMe, uploadMyPhoto } from '@/api/users'
+import {
+  changePassword,
+  openCnhDocument,
+  removeMyPhoto,
+  updateMe,
+  uploadMyCnhDocument,
+  uploadMyPhoto,
+} from '@/api/users'
 import type { ProfilePayload } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -44,6 +52,28 @@ async function saveProfile() {
     profileError.value = errorMessage(e, 'Não foi possível salvar o perfil.')
   } finally {
     saving.value = false
+  }
+}
+
+const uploadingCnh = ref(false)
+
+async function onCnhDocument(file: File) {
+  uploadingCnh.value = true
+  try {
+    auth.profile = await uploadMyCnhDocument(file)
+    toast.success('CNH enviada. Você já pode alugar.')
+  } catch (e) {
+    toast.error(errorMessage(e, 'Não foi possível enviar a CNH.'))
+  } finally {
+    uploadingCnh.value = false
+  }
+}
+
+async function viewCnhDocument() {
+  try {
+    await openCnhDocument()
+  } catch (e) {
+    toast.error(errorMessage(e, 'Não foi possível abrir a CNH.'))
   }
 }
 
@@ -93,7 +123,22 @@ async function submitPassword() {
   <section class="mx-auto max-w-2xl space-y-6">
     <div>
       <h1 class="text-3xl font-bold">Meu perfil</h1>
-      <p class="text-base-content/70">Atualize sua foto, seus dados e sua senha.</p>
+      <p class="text-base-content/70">Atualize sua foto, seus dados, sua CNH e sua senha.</p>
+    </div>
+
+    <div id="cnh" class="card bg-base-100 border-base-300 scroll-mt-24 border shadow-sm">
+      <div class="card-body gap-4">
+        <h2 class="card-title">Documento da CNH</h2>
+        <p class="text-base-content/70 -mt-2 text-sm">
+          Um único PDF por conta. Ao enviar outro, o anterior é apagado e substituído.
+        </p>
+        <CnhDocumentField
+          :uploaded-at="auth.profile?.cnhDocumentUploadedAt"
+          :busy="uploadingCnh"
+          @select="onCnhDocument"
+          @view="viewCnhDocument"
+        />
+      </div>
     </div>
 
     <div class="card bg-base-100 border-base-300 border shadow-sm">

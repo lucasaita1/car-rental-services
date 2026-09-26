@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import UserFormModal from '@/components/UserFormModal.vue'
-import { changeRole, listUsers } from '@/api/users'
+import { changeRole, listUsers, openCnhDocument } from '@/api/users'
 import { errorMessage } from '@/api/http'
 import type { User, UserRole } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
@@ -20,6 +20,14 @@ const confirmOpen = ref(false)
 const saving = ref(false)
 const target = ref<User | null>(null)
 const nextRole = ref<UserRole>('ADMIN')
+
+async function viewCnh(user: User) {
+  try {
+    await openCnhDocument(user.id)
+  } catch (e) {
+    toast.error(errorMessage(e, 'Não foi possível abrir a CNH.'))
+  }
+}
 
 async function load() {
   loading.value = true
@@ -85,6 +93,7 @@ onMounted(load)
             <th>Nome</th>
             <th>E-mail</th>
             <th>Papel</th>
+            <th>CNH</th>
             <th></th>
           </tr>
         </thead>
@@ -99,6 +108,16 @@ onMounted(load)
               >
                 {{ user.role === 'ADMIN' ? 'Administrador' : 'Cliente' }}
               </span>
+            </td>
+            <td>
+              <button
+                v-if="user.cnhDocument"
+                class="btn btn-ghost btn-xs text-success"
+                @click="viewCnh(user)"
+              >
+                Ver PDF
+              </button>
+              <span v-else class="badge badge-warning badge-soft badge-sm">Pendente</span>
             </td>
             <td class="text-right">
               <span v-if="user.id === auth.userId" class="text-sm text-base-content/60">Você</span>

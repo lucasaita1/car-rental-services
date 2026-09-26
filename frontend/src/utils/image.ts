@@ -7,3 +7,10 @@ export function validateImage(file: File): string {
   if (file.size > MAX_IMAGE_BYTES) return 'A imagem deve ter no máximo 5 MB.'
   return ''
 }
+
+export function validatePdf(file: File): string {
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'))
+    return 'Envie a CNH em PDF.'
+  if (file.size > MAX_IMAGE_BYTES) return 'O PDF deve ter no máximo 5 MB.'
+  return ''
+}

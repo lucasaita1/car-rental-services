@@ -59,6 +59,8 @@ export interface User {
   cnh: string | null
   role: UserRole
   photoUrl: string | null
+  cnhDocument: boolean
+  cnhDocumentUploadedAt: string | null
 }
 
 export interface AdminUserPayload {
