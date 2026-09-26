@@ -9,11 +9,11 @@ const route = useRoute()
 
 <template>
   <div class="bg-base-200 flex min-h-screen flex-col">
-    <AppNavbar />
+    <AppNavbar v-if="!route.meta.bare" />
     <main :class="route.meta.fullWidth ? 'flex-1' : 'mx-auto w-full max-w-6xl flex-1 px-4 py-8'">
       <RouterView />
     </main>
-    <AppFooter />
+    <AppFooter v-if="!route.meta.bare" />
     <ToastHost />
   </div>
 </template>
