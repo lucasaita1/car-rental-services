@@ -154,11 +154,12 @@ Consumidor puro, sem API HTTP exposta. Escuta a fila e registra tudo que passa p
 
 SPA em `frontend/`, consumindo os dois serviços pelo navegador.
 
-**Stack:** Vue 3.5, TypeScript, Vite, Vue Router, Pinia, Tailwind CSS 4, daisyUI 5, axios e jwt-decode. Testes com Vitest; ESLint, Oxlint e Prettier.
+**Stack:** Vue 3.5, TypeScript, Vite, Vue Router, Pinia, Tailwind CSS 4, daisyUI 5 (temas próprios da marca), axios e jwt-decode. Fonte Plus Jakarta Sans empacotada via npm. Testes com Vitest; ESLint, Oxlint e Prettier.
 
 | Rota | Acesso | Tela |
 |---|---|---|
-| `/` | público | Catálogo com busca e filtro por status |
+| `/` | público | Landing page com busca, frota ao vivo, como funciona e dúvidas |
+| `/carros` | público | Catálogo com busca e filtro por status |
 | `/login`, `/cadastro` | só deslogado | Entrar e criar conta |
 | `/minhas-locacoes` | logado | Histórico e devolução das próprias locações |
 | `/perfil` | logado | Foto, dados pessoais e troca de senha |
