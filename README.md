@@ -101,6 +101,9 @@ GET    /users                    Listar usuários           autenticado
 GET    /users/{id}               Buscar por ID             autenticado
 PUT    /users/{id}               Atualizar usuário         autenticado
 DELETE /users/{id}               Remover usuário           autenticado
+PUT    /users/me/cnh-document    Enviar ou trocar a CNH    autenticado (multipart, PDF)
+GET    /users/me/cnh-document    Baixar a própria CNH      autenticado
+GET    /users/{id}/cnh-document  Baixar a CNH do cliente   próprio ou ADMIN
 ```
 
 ### 2. Serviço de Carros
@@ -190,6 +193,8 @@ Há dois papéis: `USER` (cliente) e `ADMIN`. Todo cadastro público nasce `USER
 | `POST /auth/password/forgot`, `POST /auth/password/reset` | ✓ | ✓ | ✓ |
 | `POST /auth/logout` | 401 | ✓ | ✓ |
 | `GET`, `PUT /users/me`, `PUT /users/me/password`, `POST`, `DELETE /users/me/photo` | 401 | ✓ | ✓ |
+| `PUT`, `GET /users/me/cnh-document` | 401 | ✓ | ✓ |
+| `GET /users/{id}/cnh-document` | 401 | só a própria | ✓ |
 | `GET /files/**` (fotos) | ✓ | ✓ | ✓ |
 | `GET /users`, `PATCH /users/{id}/role` | 401 | 403 | ✓ |
 | `GET`, `PUT`, `DELETE /users/{id}` | 401 | só a própria conta | ✓ |
@@ -233,14 +238,17 @@ A chamada ao serviço de carros é isolada em `try/catch`: se ele estiver fora d
 
 ```
 POST /rental/hold/{carId}                 (clique em "Alugar")
-   ├─ recusa carro em manutenção ou já alugado
+   ├─ recusa carro em manutenção, já alugado ou sem diária
+   ├─ recusa cliente que ainda não enviou o PDF da CNH → 409
    ├─ SET NX car:hold:{carId} = userId, TTL 10 min  (atômico)
    ├─ se outro cliente segura o carro → 409
    └─ solta a reserva anterior do mesmo cliente, se houver
 
 POST /rental/rent/{carId}/user/{userId}   (confirmação no checkout)
    ├─ exige que a reserva seja do próprio cliente (ou esteja livre)
+   ├─ exige expectedReturnDate (sem ela → 400)
    ├─ lê "user:{userId}" no Redis; se ausente, exige novo login
+   ├─ exige o PDF da CNH enviado (flag cnhDocument no cache)
    ├─ grava a locação em TB_RENTALS e marca o carro como RENTED
    └─ solta a reserva
 
@@ -248,6 +256,15 @@ DELETE /rental/hold/{carId}               (cancelar ou fechar o checkout)
 ```
 
 Enquanto a reserva existe, o catálogo devolve `"reserved": true` e o carro aparece como "Reservado" para os outros clientes.
+
+### CNH em PDF
+
+Todo cliente precisa enviar a CNH em PDF antes de alugar. O cadastro pelo front já exige o arquivo, e quem não enviou vê o aviso na home e no perfil.
+
+- Um PDF por usuário. Não há exclusão: um novo envio grava o arquivo novo, atualiza a conta e só então apaga o antigo.
+- O tipo é conferido pela assinatura `%PDF-` do arquivo, não pela extensão. Limite de 5 MB.
+- O arquivo fica em `storage/documents/cnh`, fora de `/files`: só o dono e administradores baixam, e sempre com token (`Cache-Control: private, no-store`).
+- O login envia `cnhDocument` no cache do usuário para o car-microservice. Ao enviar a CNH, o user-microservice republica esse cache com o mesmo token, então o cliente pode alugar sem sair e entrar de novo.
 
 ### Recuperação de senha
 
@@ -546,7 +563,7 @@ curl -X POST "http://localhost:8082/rental/rent/1/user/1?expectedReturnDate=2026
   -H "Authorization: Bearer $TOKEN"
 ```
 
-O valor é a diária multiplicada pelos dias corridos, com mínimo de uma diária. Na locação ficam gravados a diária vigente (mudanças posteriores no carro não afetam locações em andamento) e o total previsto pela data combinada. Na devolução, o total final é recalculado pelos dias efetivamente usados. Carro sem diária definida não pode ser reservado nem alugado.
+`expectedReturnDate` é obrigatório. O valor é a diária multiplicada pelos dias corridos, com mínimo de uma diária. Na locação ficam gravados a diária vigente (mudanças posteriores no carro não afetam locações em andamento) e o total previsto pela data combinada. Na devolução, o total final é recalculado pelos dias efetivamente usados. Carro sem diária definida não pode ser reservado nem alugado.
 
 Os endpoints de aluguel retornam texto puro, não JSON:
 
@@ -594,6 +611,10 @@ Sequência sugerida para um teste ponta a ponta:
 | `cpf` | VARCHAR | |
 | `cnh` | VARCHAR | |
 | `password` | VARCHAR | hash BCrypt |
+| `photo_path` | VARCHAR | foto de perfil |
+| `role` | ENUM | `ADMIN` ou `USER` |
+| `cnh_document_path` | VARCHAR | PDF da CNH, fora da pasta pública |
+| `cnh_document_uploaded_at` | DATETIME(6) | data do último envio |
 
 ### Frota (MySQL, porta 3307)
 
@@ -610,7 +631,7 @@ Sequência sugerida para um teste ponta a ponta:
 | `details` | JSON | lista de `{label, value}`, opcional |
 | `rental_date` | DATE | |
 | `return_date` | DATE | |
-| `status` | TINYINT | ordinal de AVAILABLE, RENTED ou MAINTENANCE |
+| `status` | ENUM | `AVAILABLE`, `RENTED` ou `MAINTENANCE` |
 | `user_id` | BIGINT | cliente que alugou |
 
 ### Locações (MySQL, porta 3307)
@@ -643,10 +664,14 @@ O schema dos dois bancos MySQL é versionado com Flyway. O Hibernate não cria n
 ```
 user-microservice/src/main/resources/db/migration/
   V1__create_users_and_seeds.sql
+  V2__add_user_cnh_document.sql
 car-microservice/src/main/resources/db/migration/
   V1__create_cars_and_rentals.sql
   V2__add_car_pricing_and_details.sql
+  V3__store_car_status_as_text.sql
 ```
+
+A V3 converte o status do carro, antes gravado pela posição no enum (0, 1, 2), para texto. Com o ordinal, reordenar o enum `CarStatus` mudaria o significado dos dados já gravados.
 
 - As migrations rodam sozinhas na subida de cada serviço, e o histórico fica na tabela `flyway_schema_history`.
 - Toda mudança de schema entra num arquivo novo, `V{n}__descricao.sql`. Um arquivo já aplicado nunca é editado: o Flyway compara checksums e recusa a subida.
@@ -687,7 +712,7 @@ Os dois serviços precisam apontar para a **mesma instância** do Redis.
 
 ### Arquivos
 
-Fotos ficam em `storage/users` e `storage/cars`, dentro da pasta de execução de cada serviço (configurável por `STORAGE_DIR`), e são servidas em `/files/**`. O banco guarda só o caminho relativo. A pasta está no `.gitignore`.
+Fotos ficam em `storage/users` e `storage/cars`, dentro da pasta de execução de cada serviço (configurável por `STORAGE_DIR`), e são servidas em `/files/**`. O PDF da CNH fica em `storage/documents/cnh` e não é servido por `/files`. O banco guarda só o caminho relativo. A pasta está no `.gitignore`.
 
 ---
 

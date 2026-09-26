@@ -446,6 +446,31 @@
             "description": "ADMIN. Promove (ADMIN) ou rebaixa (USER) um usuário. Um admin não altera o próprio papel."
           },
           "response": []
+        },
+        {
+          "name": "Get User CNH Document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/{{userId}}/cnh-document",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}",
+                "cnh-document"
+              ]
+            },
+            "description": "Requer autenticação. Retorna 404 se o ID não existir."
+          },
+          "response": []
         }
       ]
     },
@@ -596,6 +621,66 @@
                 "users",
                 "me",
                 "photo"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Upload CNH Document",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/me/cnh-document",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "cnh-document"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "PDF da CNH, até 5 MB"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My CNH Document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userUrl}}/users/me/cnh-document",
+              "host": [
+                "{{userUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "cnh-document"
               ]
             },
             "description": ""
@@ -847,7 +932,7 @@
               }
             ],
             "url": {
-              "raw": "{{carUrl}}/rental/rent/{{carId}}/user/{{userId}}",
+              "raw": "{{carUrl}}/rental/rent/{{carId}}/user/{{userId}}?expectedReturnDate=2026-10-03",
               "host": [
                 "{{carUrl}}"
               ],
@@ -857,6 +942,13 @@
                 "{{carId}}",
                 "user",
                 "{{userId}}"
+              ],
+              "query": [
+                {
+                  "key": "expectedReturnDate",
+                  "value": "2026-10-03",
+                  "description": "Obrigatório (AAAA-MM-DD)"
+                }
               ]
             },
             "description": "Sem corpo. Exige que o usuário esteja no cache Redis — ou seja, que o Login tenha sido feito nos últimos 120 minutos com o car-microservice no ar.\n\nRespostas possíveis (texto puro):\n- 'Carro alugado com sucesso! Dados preparados para envio ao serviço de e-mail.'\n- 'Este carro já está alugado no momento.'\n- 'Usuário não encontrado no cache. É necessário fazer login novamente.'\n\nO e-mail de confirmação de aluguel ainda não é publicado no RabbitMQ."
@@ -960,7 +1052,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"{{userId}}\",\n  \"name\": \"Lucas Aita\",\n  \"cpf\": \"12345678901\",\n  \"email\": \"{{userEmail}}\"\n}"
+              "raw": "{\n  \"id\": \"{{userId}}\",\n  \"name\": \"Lucas Aita\",\n  \"cpf\": \"12345678901\",\n  \"email\": \"{{userEmail}}\",\n  \"cnhDocument\": true\n}"
             },
             "url": {
               "raw": "{{carUrl}}/cache/user",
