@@ -166,7 +166,7 @@ SPA em `frontend/`, consumindo os dois serviços pelo navegador.
 | `/esqueci-senha`, `/redefinir-senha` | público | Recuperação de senha por e-mail |
 | `/admin/frota` | ADMIN | Cadastro, edição e remoção de carros (modais) |
 | `/admin/locacoes` | ADMIN | Locações em andamento e atrasadas |
-| `/admin/usuarios` | ADMIN | Promover ou remover administradores |
+| `/admin/usuarios` | ADMIN | Criar usuários e administradores, promover ou remover acesso |
 
 O papel do usuário vem do próprio JWT. Os guards do router escondem as telas, mas quem garante a regra é o backend: forçar uma URL ou uma requisição sem permissão resulta em 401 ou 403.
 
@@ -174,7 +174,7 @@ O papel do usuário vem do próprio JWT. Os guards do router escondem as telas, 
 
 ## Perfis e Permissões
 
-Há dois papéis: `USER` (cliente) e `ADMIN`. Todo cadastro público nasce `USER`; um `role` enviado no corpo do cadastro é ignorado. Só um ADMIN promove outro usuário.
+Há dois papéis: `USER` (cliente) e `ADMIN`. Todo cadastro público nasce `USER`; um `role` enviado no corpo do cadastro é ignorado. Só um ADMIN cria outro administrador (`POST /users`, com `role`) ou promove um usuário existente.
 
 | Rota | Anônimo | USER | ADMIN |
 |---|:---:|:---:|:---:|
@@ -194,7 +194,7 @@ Há dois papéis: `USER` (cliente) e `ADMIN`. Todo cadastro público nasce `USER
 | `GET /users`, `PATCH /users/{id}/role` | 401 | 403 | ✓ |
 | `GET`, `PUT`, `DELETE /users/{id}` | 401 | só a própria conta | ✓ |
 
-O primeiro administrador é criado na subida do user-microservice a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`. Se o e-mail já existir, a conta é promovida sem trocar a senha.
+O administrador padrão é criado pelo seeder `default-admin` na primeira subida do user-microservice, a partir de `ADMIN_NAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD`. A execução fica registrada na tabela `TB_SEEDS`, então o seeder não roda de novo, mesmo que esse admin seja removido. Se o e-mail já existir, a conta é promovida sem trocar a senha. O seeder não envia e-mail.
 
 ---
 
@@ -302,7 +302,7 @@ Os modelos listam todas as chaves. As principais:
 | `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD` | user, car | Usadas também pelo container do MySQL |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | user, car | A mesma instância nos dois |
 | `STORAGE_DIR` | user, car | Pasta dos uploads; padrão `storage` |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | user | Administrador criado na subida |
+| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | user | Administrador padrão do seeder (roda uma única vez) |
 | `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `EMAIL_FROM` | email | Senha de app do Gmail, **sem aspas** |
 | `FRONTEND_URL` | user, car | Origens liberadas no CORS |
 
