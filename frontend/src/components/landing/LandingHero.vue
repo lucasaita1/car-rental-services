@@ -21,22 +21,6 @@ function submit() {
 <template>
   <section class="bg-neutral text-neutral-content relative isolate overflow-hidden">
     <div
-      class="bg-primary/40 pointer-events-none absolute -top-40 -left-32 -z-10 size-[36rem] rounded-full blur-3xl"
-    ></div>
-    <div
-      class="bg-accent/20 pointer-events-none absolute -right-40 bottom-0 -z-10 size-[30rem] rounded-full blur-3xl"
-    ></div>
-    <div
-      class="pointer-events-none absolute inset-0 -z-10 opacity-[0.07]"
-      style="
-        background-image:
-          linear-gradient(currentColor 1px, transparent 1px),
-          linear-gradient(90deg, currentColor 1px, transparent 1px);
-        background-size: 48px 48px;
-      "
-    ></div>
-
-    <div
       class="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-16 pb-20 lg:grid-cols-2 lg:pt-24 lg:pb-28"
     >
       <div class="space-y-8">

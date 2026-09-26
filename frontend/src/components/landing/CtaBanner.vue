@@ -10,9 +10,6 @@ const auth = useAuthStore()
     <div
       class="rounded-box bg-primary text-primary-content relative isolate overflow-hidden px-8 py-14 shadow-2xl md:px-16"
     >
-      <div
-        class="bg-accent/40 absolute -top-20 -right-20 -z-10 size-72 rounded-full blur-3xl"
-      ></div>
       <div class="road-line absolute right-0 bottom-6 left-0 -z-10 h-1 opacity-50"></div>
       <div class="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
         <div class="max-w-xl space-y-3">
