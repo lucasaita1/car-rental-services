@@ -37,6 +37,7 @@ public class CarModel {
 
     private LocalDate rentalDate;
     private LocalDate returnDate;
+    @Enumerated(EnumType.STRING)
     private CarStatus status;
     private Long userId;
     private String photoPath;
