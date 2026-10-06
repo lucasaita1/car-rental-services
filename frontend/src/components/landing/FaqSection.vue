@@ -2,15 +2,15 @@
 const faqs = [
   {
     q: 'Preciso de CNH para alugar?',
-    a: 'Sim. No cadastro pedimos seu CPF e o número da sua CNH. Você pode conferir e atualizar os dados em "Meu perfil".',
+    a: 'Sim. No cadastro pedimos seu CPF, o número da CNH e uma cópia dela em PDF. Sem o PDF não é possível alugar. Você pode trocar o arquivo quando quiser em "Meu perfil".',
   },
   {
     q: 'Como funciona a reserva de 10 minutos?',
     a: 'Quando você clica em alugar, o carro fica reservado só para você por 10 minutos. Durante esse tempo ele aparece como "Reservado" para os outros clientes. Se você cancelar ou o tempo acabar, ele volta a ficar disponível.',
   },
   {
-    q: 'Preciso informar a data de devolução?',
-    a: 'Não é obrigatório. Você pode informar uma data prevista ou deixar em aberto e devolver quando precisar, pelo painel "Minhas locações".',
+    q: 'Como é calculado o valor do aluguel?',
+    a: 'Cada carro tem uma diária. Você escolhe a data de devolução e vê o total antes de confirmar: diária vezes o número de dias, com mínimo de uma diária.',
   },
   {
     q: 'Posso alugar mais de um carro ao mesmo tempo?',

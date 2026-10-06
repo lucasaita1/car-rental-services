@@ -15,8 +15,8 @@ const benefits: { icon: IconName; title: string; text: string }[] = [
   },
   {
     icon: 'calendar',
-    title: 'Devolução flexível',
-    text: 'Informe uma data prevista se quiser, ou deixe em aberto. Você devolve pelo próprio painel.',
+    title: 'Preço claro desde o início',
+    text: 'Cada carro mostra a diária. Ao escolher a data de devolução, você vê o total antes de confirmar.',
   },
   {
     icon: 'wrench',
