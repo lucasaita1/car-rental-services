@@ -36,13 +36,14 @@ JUSTIFICATIVA: <uma ou duas frases citando os números ou trechos que pesaram>"
 DADOS=$(head -c 6000 "$ARQUIVO_DADOS")
 
 # 3) JSON montado pelo jq: aspas e quebras de linha nos dados não quebram nada
-# ADAPTE desta equipe: max_tokens 200 -> 2000 porque o modelo disponível na
-# conta (openai/gpt-oss-20b) consome tokens de raciocínio antes da resposta.
+# ADAPTE desta equipe: max_tokens 200 -> 4000 porque o modelo disponível na
+# conta (openai/gpt-oss-20b) consome tokens de raciocínio antes da resposta
+# (4000 comporta a revisão de código, a maior entrada do pipeline).
 CORPO=$(jq -n --arg modelo "$MODELO" --arg sistema "$SISTEMA" \
   --arg dados "<dados>
 ${DADOS}
 </dados>" \
-  '{model: $modelo, temperature: 0, max_tokens: 2000,
+  '{model: $modelo, temperature: 0, max_tokens: 4000,
     messages: [{role: "system", content: $sistema}, {role: "user", content: $dados}]}')
 
 RESPOSTA=$(curl -s --max-time 30 "$API_URL" \
