@@ -45,6 +45,7 @@ jobs:
         id: ia
         env:
           GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+          MODELO: openai/gpt-oss-20b
           TAREFA: >-
             Análise de logs do car-microservice (API de frota e aluguel de
             veículos, Spring Boot). Se os logs mostrarem problema crítico que
