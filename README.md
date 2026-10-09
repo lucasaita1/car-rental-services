@@ -889,3 +889,35 @@ Contribuições são bem-vindas.
 **Se este projeto te ajudou de alguma forma, considere deixar uma estrela.**
 
 </div>
+
+---
+
+## Agente que altera código
+
+Desafio extra da Atividade 5: um agente de IA que percebe testes falhando, pede a correção à IA (Groq, `llama-3.3-70b-versatile`), aplica a alteração se ela passar pelas travas de segurança, verifica rodando os testes de novo e entrega um pull request para revisão humana — ou uma issue, quando não consegue. Arquivos: [`scripts/agente_codigo.sh`](scripts/agente_codigo.sh) (script do roteiro, sem alterações) e [`.github/workflows/agente-codigo.yml`](.github/workflows/agente-codigo.yml) (workflow adaptado ao reator Maven do projeto).
+
+### Travas de segurança testadas (Passo 6)
+
+| Experimento | O que fizemos | O que o agente fez | Run |
+|---|---|---|---|
+| A. Nada a fazer | Rodamos `corrigir_bug` na `main`, com os testes passando | Percebeu que a verificação já passa e parou: nenhum PR, nenhuma issue | [run](https://github.com/lucasaita1/car-rental-services/actions/runs/37971082164) |
+| B. Bug impossível | Na branch `exp-bug-impossivel`, plantamos um teste que contradiz outro (mesma entrada, resultados diferentes) | Tentou 3 vezes, restaurou o arquivo original e abriu a [issue #5](https://github.com/lucasaita1/car-rental-services/issues/5) pedindo ajuda humana | [run](https://github.com/lucasaita1/car-rental-services/actions/runs/37971094848) |
+| D. Área proibida | Na branch `exp-area-proibida`, apontamos o alvo para `.github/workflows/ci.yml` | Recusou no primeiro passo, antes de qualquer chamada à IA: "O agente não pode alterar .github/workflows/ci.yml" | [run](https://github.com/lucasaita1/car-rental-services/actions/runs/37971086298) |
+| E. Arquivo grande demais | Na branch `exp-arquivo-grande`, apontamos o alvo para o `README.md` (37 mil caracteres) | Recusou com erro ("mais de 12000 caracteres"), em vez de mandar um arquivo cortado para a IA | [run](https://github.com/lucasaita1/car-rental-services/actions/runs/37971090608) |
+
+### Reflexão (Passo 7)
+
+**Você faria o merge de um PR do agente sem ler o diff? Por quê?**
+Não. O próprio roteiro mostra o motivo com a cobertura: a IA pode entregar algo que passa na verificação sem estar certo (um teste sem assert aumenta cobertura; uma "correção" pode codificar um bug como comportamento esperado). O diff de um agente é pequeno e a revisão custa minutos; um erro em produção custa muito mais. O PR existe exatamente para isso.
+
+**Quem é responsável se o código escrito pela IA causar um problema em produção?**
+Quem fez o merge, em primeiro lugar: o nível 4 de autonomia existe para colocar uma decisão humana entre o agente e a produção, e quem aprova assume o código como seu. Quem criou o agente divide a responsabilidade pelo desenho das travas e do processo (um agente sem trava é negligência de quem o construiu). A IA não é responsável: é ferramenta, não assina contrato nem responde por dano.
+
+**Por que o agente não pode alterar os testes na missão `corrigir_bug`? O que aconteceria se pudesse?**
+Porque o teste é o juiz da verificação. Se a IA pudesse editá-lo, o caminho mais curto para "fazer os testes passarem" seria mudar o que o teste espera — apagando o assert ou aceitando o valor errado — e o bug viraria comportamento oficial do sistema. Vimos isso de perto no experimento B: sem poder tocar nos testes contraditórios, o agente tentou, falhou e pediu ajuda humana, que era a única resposta correta.
+
+**O que faltaria para deixar o agente fazer merge sozinho (nível 5)? Em que tipo de projeto isso seria aceitável?**
+Faltaria uma rede de verificação muito mais forte que a nossa: suíte de testes com cobertura alta e testes de mutação, ambiente de staging com deploy canário e rollback automático, monitoramento com alertas, limites de blast radius (arquivos e módulos permitidos) e trilha de auditoria completa. Mesmo assim, só consideraríamos em mudanças de baixo risco e reversíveis — documentação, dependências com testes verdes, configurações não críticas. Num sistema que processa reservas e pagamentos, como o nosso, o merge continua humano.
+
+**Que dado do projeto foi enviado para uma API externa? Você faria o mesmo com o código de uma empresa?**
+Foram para a API da Groq: o conteúdo do arquivo alvo (`RentalPricing.java`), o arquivo de contexto (o teste) e o trecho final do log de erro. Aqui o repositório é público e acadêmico, então nada foi exposto. Com código de empresa, não faríamos isso sem contrato que garanta não-retenção e não-treinamento com os dados, chave corporativa, e uma trava adicional barrando segredos e dados pessoais no prompt — o log de erro, em especial, pode vazar informação sensível sem ninguém perceber.
