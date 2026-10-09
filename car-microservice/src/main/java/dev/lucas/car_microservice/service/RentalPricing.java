@@ -11,7 +11,10 @@ public final class RentalPricing {
     }
 
     public static long billableDays(LocalDate start, LocalDate end) {
-        return ChronoUnit.DAYS.between(start, end);
+        // Contagem de dias corridos: o dia de início é cobrado, o dia de fim não.
+        // Se as datas são iguais, cobra-se ao menos um dia.
+        long days = ChronoUnit.DAYS.between(start, end);
+        return days == 0 ? 1 : days;
     }
 
     public static BigDecimal total(BigDecimal dailyRate, LocalDate start, LocalDate end) {
