@@ -18,6 +18,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+/**
+ * Classe que encapsula a lógica de negócio para gerenciar carros.
+ */
 @Service
 @RequiredArgsConstructor
 public class CarService {
@@ -26,14 +29,38 @@ public class CarService {
     private final RentalRepository rentalRepository;
     private final FileStorageService storage;
 
+    /**
+     * Persiste o modelo de carro no repositório.
+     *
+     * @param carModel o modelo de carro a ser salvo
+     * @return o modelo de carro salvo com o ID gerado
+     */
     public CarModel save(CarModel carModel){
         return carRepository.save(carModel);
     }
 
+    /**
+     * Recupera um carro pelo seu identificador único.
+     *
+     * @param id o identificador do carro
+     * @return o modelo de carro encontrado
+     * @throws RuntimeException se o carro não existir
+     */
     public CarModel findById(Long id){
         return carRepository.findById(id).orElseThrow(() -> new RuntimeException("Car not found"));
     }
 
+    /**
+     * Atualiza os dados de um carro existente.
+     * <p>
+     * Valida que o status {@code RENTED} não pode ser alterado manualmente.
+     * Também impede a mudança de status caso haja uma locação ativa para o carro.
+     *
+     * @param id  o identificador do carro a ser atualizado
+     * @param dto os novos dados do carro
+     * @return o modelo de carro atualizado
+     * @throws ResponseStatusException se o status for {@code RENTED} ou se houver locação ativa
+     */
     @Transactional
     public CarModel update(Long id, CarRequestDto dto) {
         CarModel car = findExisting(id);
@@ -61,10 +88,23 @@ public class CarService {
         return carRepository.save(car);
     }
 
+    /**
+     * Retorna todos os carros cadastrados.
+     *
+     * @return lista contendo todos os carros
+     */
     public List<CarModel> findAll(){
         return carRepository.findAll();
     }
 
+    /**
+     * Exclui um carro pelo seu identificador.
+     * <p>
+     * Impede a exclusão se houver uma locação ativa associada ao carro.
+     *
+     * @param id o identificador do carro a ser excluído
+     * @throws ResponseStatusException se houver locação ativa
+     */
     public  void deleteById(Long id){
         if (rentalRepository.existsByCarIdAndStatus(id, RentalStatus.ACTIVE)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -74,6 +114,16 @@ public class CarService {
         carRepository.deleteById(id);
     }
 
+    /**
+     * Atualiza a foto de um carro.
+     * <p>
+     * Salva a nova imagem, atualiza o caminho no modelo e remove a imagem antiga.
+     *
+     * @param id   o identificador do carro
+     * @param file o arquivo de imagem a ser armazenado
+     * @return o modelo de carro atualizado com o novo caminho da foto
+     * @throws ResponseStatusException se o carro não existir
+     */
     @Transactional
     public CarModel updatePhoto(Long id, MultipartFile file) {
         CarModel car = findExisting(id);
@@ -85,6 +135,15 @@ public class CarService {
         return saved;
     }
 
+    /**
+     * Remove a foto de um carro.
+     * <p>
+     * Apaga o arquivo da foto e limpa o campo de caminho no modelo.
+     *
+     * @param id o identificador do carro
+     * @return o modelo de carro atualizado sem foto
+     * @throws ResponseStatusException se o carro não existir
+     */
     @Transactional
     public CarModel removePhoto(Long id) {
         CarModel car = findExisting(id);
