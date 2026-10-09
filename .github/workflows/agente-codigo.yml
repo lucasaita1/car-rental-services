@@ -41,7 +41,7 @@ jobs:
           if [ "$MISSAO" = "corrigir_bug" ]; then
             {
               echo "objetivo=Corrigir o código para que os testes passem, sem mudar o que os testes esperam."
-              echo "alvo=car-microservice/src/main/java/dev/lucas/car_microservice/service/RentalPricing.java"
+              echo "alvo=.github/workflows/ci.yml"
               echo "contexto=car-microservice/src/test/java/dev/lucas/car_microservice/service/RentalPricingTest.java"
               echo "verificacao=mvn -B -q test -pl car-microservice -am"
             } >> "$GITHUB_OUTPUT"
