@@ -99,7 +99,7 @@ jobs:
         id: canary
         env:
           GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
-          MODELO: llama-3.3-70b-versatile
+          MODELO: openai/gpt-oss-20b
           IA_RESUMO: "0"   # a análise da IA entra na tabela abaixo
           URL_ESTAVEL: http://127.0.0.1:8001/cars
           URL_NOVA: http://127.0.0.1:8002/cars
