@@ -45,4 +45,11 @@ class RentalPricingTest {
     void shouldRoundToCents() {
         assertThat(RentalPricing.total(new BigDecimal("33.333"), INICIO, INICIO.plusDays(3)).scale()).isEqualTo(2);
     }
+
+    @Test
+    @DisplayName("Teste contraditorio plantado de proposito (experimento B)")
+    void shouldContradictOtherTest() {
+        // Contradiz shouldChargePerDay: mesma entrada, resultado diferente.
+        assertThat(RentalPricing.billableDays(INICIO, INICIO.plusDays(3))).isEqualTo(5);
+    }
 }
