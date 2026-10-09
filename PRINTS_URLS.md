@@ -27,3 +27,13 @@ Run extra confirmando a volta ao estado APROVADO após o revert: https://github.
 - **Cobertura:** o projeto estava em 68.36% (abaixo do limite de 70%). Foi adicionado o
   `CarControllerTest` (@WebMvcTest + MockMvc) elevando a cobertura para 76.84%, permitindo o
   cenário APROVADO. No cenário BLOQUEADO, esse teste foi temporariamente anotado com `@Disabled`.
+
+## Prints — Agente de IA abrindo PR e alterando código (`ai-code-agent.yml`)
+
+| Print | O que mostra | URL |
+|---|---|---|
+| 1 | Run do workflow com os steps do agente (IA altera o código, compile, commit do bot) | https://github.com/lucasaita1/car-rental-services/actions/runs/37964395733 |
+| 2 | Step "Agente abre o Pull Request" com o bloqueio de governança do GitHub | https://github.com/lucasaita1/car-rental-services/actions/runs/37964395733 |
+| 3 | PR #4 (Conversation) com a descrição redigida pela IA | https://github.com/lucasaita1/car-rental-services/pull/4 |
+| 4 | Diff do Javadoc gerado pela IA (+59 linhas, só documentação) | https://github.com/lucasaita1/car-rental-services/pull/4/files |
+| 5 | Commit do PR autorado por github-actions[bot] | https://github.com/lucasaita1/car-rental-services/pull/4/commits |
