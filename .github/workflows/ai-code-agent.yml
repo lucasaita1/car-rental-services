@@ -1,0 +1,55 @@
+name: Agente de IA - Pull Request
+
+# Agente autônomo que ALTERA CÓDIGO: a IA adiciona Javadoc ao CarService,
+# o pipeline valida que o resultado compila e o próprio pipeline abre o
+# Pull Request como github-actions[bot]. Nenhum humano edita código aqui.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  agente-abre-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Agente de IA altera o código (Javadoc no CarService)
+        env:
+          GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+        run: bash scripts/code-agent.sh
+
+      - name: Validar que o código gerado pela IA compila
+        run: mvn -B clean compile -pl car-microservice -am
+
+      - name: Commit e push na branch do agente
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="ai-agent/javadoc-${{ github.run_number }}"
+          git checkout -b "$BRANCH"
+          git add car-microservice/src
+          git commit -m "docs(car): Javadoc no CarService gerado pelo agente de IA (run ${{ github.run_id }})"
+          git push origin "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Agente abre o Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$(cat pr-title.txt)" \
+            --body-file pr-body.md
