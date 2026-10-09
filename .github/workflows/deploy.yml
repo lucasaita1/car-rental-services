@@ -1,0 +1,144 @@
+name: Deploy com IA
+
+on:
+  workflow_dispatch:
+    inputs:
+      cenario:
+        description: "Cenário de teste"
+        type: choice
+        options: [normal, com_falha]
+        default: normal
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      LIMITE_ERRO_PCT: 5        # ADAPTE: acima disto a versão nova é reprovada
+      LIMITE_P99_MS: 800        # ADAPTE: latência máxima aceitável (ms)
+      # Credenciais de CI (descartáveis) para a infraestrutura e para as duas
+      # versões do car-microservice que sobem dentro do runner
+      MYSQL_ROOT_PASSWORD: ci_root_pw
+      MYSQL_DATABASE: car_db
+      MYSQL_USER: car_app
+      MYSQL_PASSWORD: ci_app_pw
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3307
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ci_redis_pw
+      SECRET_TOKEN: ci_secret_token_para_o_deploy_blue_green
+    steps:
+      # Histórico completo: precisamos do commit anterior
+      - name: Clonar repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ADAPTE: prepare a linguagem do seu projeto (Java 17 + Maven)
+      - name: Instalar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      # ADAPTE: o car-microservice precisa de MySQL e Redis; o Compose do
+      # próprio projeto sobe os dois dentro do runner
+      - name: Subir MySQL e Redis (docker compose do projeto)
+        run: |
+          printf 'MYSQL_ROOT_PASSWORD=%s\nMYSQL_DATABASE=%s\nMYSQL_USER=%s\nMYSQL_PASSWORD=%s\nREDIS_PASSWORD=%s\nREDIS_PORT=%s\n' \
+            "$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER" "$MYSQL_PASSWORD" "$REDIS_PASSWORD" "$REDIS_PORT" \
+            > car-microservice/.env
+          docker compose -f car-microservice/docker-compose.yml up -d
+          for _ in $(seq 1 60); do
+            docker exec mysql-container mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD" --silent 2>/dev/null && break
+            sleep 2
+          done
+          docker exec mysql-container mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD" --silent
+
+      # ESTÁVEL = commit anterior (o que está "em produção")
+      # NOVA    = código deste commit (o que queremos entregar)
+      - name: Montar a versão estável em outra pasta
+        run: git worktree add ../versao-estavel HEAD~1
+
+      # ADAPTE: compila o jar nas DUAS pastas (reator Maven multi-módulo)
+      - name: Compilar as duas versões
+        run: |
+          mvn -B -q package -DskipTests -pl car-microservice -am
+          cd ../versao-estavel
+          mvn -B -q package -DskipTests -pl car-microservice -am
+
+      - name: Subir versão estável (porta 8001)
+        working-directory: ../versao-estavel
+        run: |
+          setsid nohup java -jar car-microservice/target/car-microservice-*.jar --server.port=8001 > "$GITHUB_WORKSPACE/estavel.log" 2>&1 &
+          echo $! > "$GITHUB_WORKSPACE/estavel.pid"
+
+      - name: Subir versão nova (porta 8002)
+        run: |
+          setsid nohup java -jar car-microservice/target/car-microservice-*.jar --server.port=8002 > nova.log 2>&1 &
+          echo $! > nova.pid
+
+      - name: Esperar as duas versões responderem
+        run: |
+          for PORTA in 8001 8002; do
+            for _ in $(seq 1 60); do
+              curl -sf "http://127.0.0.1:$PORTA/cars" > /dev/null && break
+              sleep 2
+            done
+            curl -sf "http://127.0.0.1:$PORTA/cars" > /dev/null \
+              || { echo "::error::Porta $PORTA não respondeu"; cat ./*.log; exit 1; }
+          done
+
+      # Cenário de falha: derruba a versão nova (funciona em qualquer projeto)
+      - name: Simular falha na versão nova
+        if: inputs.cenario == 'com_falha'
+        run: kill -- -"$(cat nova.pid)" || true
+
+      - name: Medir a versão nova
+        run: |
+          bash scripts/medir.sh \
+            "http://127.0.0.1:8001/cars" \
+            "http://127.0.0.1:8002/cars" \
+            100 200 metricas.json
+
+      # Camada 1: regra fixa. Não alucina e não pode ser convencida.
+      - name: Gate determinístico
+        id: gate
+        run: |
+          RUIM=$(jq --argjson e "$LIMITE_ERRO_PCT" --argjson l "$LIMITE_P99_MS" \
+            '.nova.taxa_erro_pct > $e or .nova.latencia_p99_ms > $l' metricas.json)
+          if [ "$RUIM" = "true" ]; then
+            echo "resultado=reprovado" >> "$GITHUB_OUTPUT"
+            echo "::warning::Métricas acima do limite fixo"
+          else
+            echo "resultado=aprovado" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Camada 2: a IA só é consultada se a regra fixa passou
+      - name: IA decide se promove
+        id: ia
+        if: steps.gate.outputs.resultado == 'aprovado'
+        env:
+          GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+          TAREFA: >-
+            Deploy blue/green da API de frota e aluguel de veículos do
+            car-rental-services (Spring Boot).
+            Limites: erro <= ${{ env.LIMITE_ERRO_PCT }}% e p99 <= ${{ env.LIMITE_P99_MS }}ms.
+            A versão nova pode receber 100% do tráfego?
+          ARQUIVO_DADOS: metricas.json
+          OPCOES: PROMOVER MANTER
+          OPCAO_SEGURA: MANTER
+        run: bash scripts/ia_decisao.sh
+
+      - name: Promover ou manter
+        env:
+          DECISAO: ${{ steps.ia.outputs.decisao }}
+        run: |
+          if [ "$DECISAO" = "PROMOVER" ]; then
+            echo "## ✅ Versão nova promovida" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## ⛔ Versão nova reprovada: a estável continua no ar" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Deploy bloqueado"
+            exit 1
+          fi

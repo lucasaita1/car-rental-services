@@ -1,0 +1,76 @@
+name: IA analisando logs v2 (defesa em camadas)
+
+# Tarefa 4 da Aula 4: a versão antiga (log-analysis.yml) manda o log cru para
+# a IA e procura a palavra "crítico" na resposta — vulnerável a prompt
+# injection. Esta versão usa scripts/ia_decisao.sh (dados delimitados, opções
+# fechadas, fail-safe) e, opcionalmente, uma regra fixa que pega o problema
+# real independentemente da IA.
+
+on:
+  workflow_dispatch:
+    inputs:
+      regra_fixa:
+        description: "Aplicar a regra fixa (camada 1) antes da IA?"
+        type: choice
+        options: [sem_regra_fixa, com_regra_fixa]
+        default: sem_regra_fixa
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  analisar-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+
+      # Camada 1 (opcional no experimento): regra fixa que nenhum texto
+      # persuasivo consegue convencer
+      - name: Regra fixa (camada determinística)
+        id: fixa
+        if: inputs.regra_fixa == 'com_regra_fixa'
+        run: |
+          if grep -qiE '^ERROR|falha cr(í|i)tica' logs/app.log; then
+            echo "bloqueado=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Regra fixa: linha ERROR / falha crítica encontrada no log"
+            echo "### 🧱 Regra fixa: ERROR encontrado no log — bloqueio independente da IA" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "bloqueado=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Camada 2: a IA como gate, do jeito seguro (ia_decisao.sh)
+      - name: IA analisa os logs (ia_decisao.sh)
+        id: ia
+        env:
+          GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
+          TAREFA: >-
+            Análise de logs do car-microservice (API de frota e aluguel de
+            veículos, Spring Boot). Se os logs mostrarem problema crítico que
+            exija incidente (falha ao processar pagamento ou reserva, banco de
+            dados indisponível, erro em cascata), escolha BLOQUEAR. Se os logs
+            estiverem saudáveis, escolha LIBERAR.
+          ARQUIVO_DADOS: logs/app.log
+          OPCOES: BLOQUEAR LIBERAR
+          OPCAO_SEGURA: BLOQUEAR
+        run: bash scripts/ia_decisao.sh
+
+      - name: Abrir issue e bloquear o deploy
+        if: steps.fixa.outputs.bloqueado == 'true' || steps.ia.outputs.decisao == 'BLOQUEAR'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JUSTIFICATIVA: ${{ steps.ia.outputs.justificativa }}
+          FIXA: ${{ steps.fixa.outputs.bloqueado }}
+        run: |
+          {
+            echo "Problema crítico detectado nos logs (v2, defesa em camadas)."
+            echo ""
+            echo "- Regra fixa bloqueou: ${FIXA:-nao_aplicada}"
+            echo "- Decisão da IA: ${{ steps.ia.outputs.decisao }}"
+            echo "- Justificativa da IA: $JUSTIFICATIVA"
+            echo "- Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > issue_body.md
+          gh issue create --title "Erro crítico detectado nos logs (v2)" --body-file issue_body.md
+          echo "::error::Deploy bloqueado pela análise de logs v2"
+          exit 1
