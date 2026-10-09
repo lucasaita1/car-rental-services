@@ -11,7 +11,7 @@ public final class RentalPricing {
     }
 
     public static long billableDays(LocalDate start, LocalDate end) {
-        return Math.max(1, ChronoUnit.DAYS.between(start, end));
+        return ChronoUnit.DAYS.between(start, end);
     }
 
     public static BigDecimal total(BigDecimal dailyRate, LocalDate start, LocalDate end) {
