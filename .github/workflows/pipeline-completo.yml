@@ -89,7 +89,7 @@ jobs:
   aprovacao:                    # humano no loop
     needs: [qualidade, seguranca]
     runs-on: ubuntu-latest
-    environment: producao       # o run PARA aqui até alguém aprovar
+    environment: production     # o run PARA aqui até alguém aprovar
     steps:
       - run: echo "Deploy aprovado por ${{ github.actor }}"
 
