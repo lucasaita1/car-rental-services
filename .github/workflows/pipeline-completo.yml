@@ -35,7 +35,7 @@ jobs:
       - name: AI Quality Gate (aprova ou bloqueia o pipeline)
         env:
           GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
-          MODELO: openai/gpt-oss-20b
+          MODELO: llama-3.3-70b-versatile
         run: bash scripts/quality-gate.sh
 
   seguranca:                    # SAST fixo + code review pela IA
@@ -71,7 +71,7 @@ jobs:
       - name: Code review de segurança pela IA
         env:
           GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
-          MODELO: openai/gpt-oss-20b
+          MODELO: llama-3.3-70b-versatile
           TAREFA: >-
             Code review de segurança da API de frota e aluguel de veículos do
             car-rental-services (Spring Boot). Reprove se houver
@@ -174,7 +174,7 @@ jobs:
         id: canary
         env:
           GROQCLOUD_API_KEY: ${{ secrets.GROQCLOUD_API_KEY }}
-          MODELO: openai/gpt-oss-20b
+          MODELO: llama-3.3-70b-versatile
           IA_RESUMO: "0"
           URL_ESTAVEL: http://127.0.0.1:8001/cars
           URL_NOVA: http://127.0.0.1:8002/cars
