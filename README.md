@@ -921,3 +921,17 @@ Faltaria uma rede de verificação muito mais forte que a nossa: suíte de teste
 
 **Que dado do projeto foi enviado para uma API externa? Você faria o mesmo com o código de uma empresa?**
 Foram para a API da Groq: o conteúdo do arquivo alvo (`RentalPricing.java`), o arquivo de contexto (o teste) e o trecho final do log de erro. Aqui o repositório é público e acadêmico, então nada foi exposto. Com código de empresa, não faríamos isso sem contrato que garanta não-retenção e não-treinamento com os dados, chave corporativa, e uma trava adicional barrando segredos e dados pessoais no prompt — o log de erro, em especial, pode vazar informação sensível sem ninguém perceber.
+
+---
+
+## Limitações e ética
+
+**Que dados o pipeline envia para a IA?** Métricas de tráfego (taxa de erro e latência das duas versões), trechos de log do fluxo de reserva, diffs de código Java e a cobertura de testes — sempre limitados a 6 mil caracteres pelo `ia_decisao.sh`. Os logs são escritos pelo sistema, mas podem carregar texto de terceiros (mensagens de erro, payloads), e o diff de um PR é escrito por qualquer colaborador: as duas são superfícies de prompt injection, como a Tarefa 4 demonstrou.
+
+**O que acontece se a IA errar, alucinar ou ficar fora do ar?** Cada decisão tem uma opção segura (fail-safe): o deploy mantém a versão estável, o canary reverte, a revisão de segurança reprova e a análise de logs bloqueia. Vivemos isso na prática: quando o modelo configurado não existia na conta, todos os gates caíram na opção segura em vez de aprovar às cegas. Além disso, a regra fixa decide antes da IA — ela nunca pode aprovar o que viola um limite objetivo.
+
+**Que decisão não deixaríamos só com a IA?** Promover 100% do tráfego para produção e fazer merge de código: as duas passam por camada determinística e, no pipeline completo, por aprovação humana obrigatória (environment `producao`). A IA acelera a análise; a responsabilidade pela produção continua humana.
+
+**Resultado da Tarefa 4 (prompt injection):** o ataque não passou em nenhuma das três versões. No pipeline antigo o modelo resistiu e ainda apontou o erro crítico (mas a arquitetura curl+grep segue frágil: bastaria a resposta evitar a palavra "crítico"); com o `ia_decisao.sh` a IA bloqueou e **denunciou a injeção na justificativa** ("ignorei a instrução interna de não mencionar a nota"); com a regra fixa o bloqueio independe da IA.
+
+**Limitação conhecida:** a conta gratuita da GroqCloud só oferece modelos com raciocínio (gpt-oss), o que exigiu ampliar o `max_tokens` do roteiro e torna a justificativa sensível a rate limit; e o rollback preditivo depende de a IA enxergar a tendência — no nosso run de lentidão ela acertou (rollback com 50% do tráfego, issue #14), mas o roteiro documenta que pode falhar, e aí a regra fixa só pega o problema com 100% dos usuários expostos.
